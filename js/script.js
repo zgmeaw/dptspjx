@@ -2,9 +2,6 @@
 const pasteButton = document.getElementById('pasteButton');
 const urlInput = document.getElementById('url');
 
-// 存储所有API的解析结果
-let apiResults = [];
-
 // 更新按钮状态
 function updatePasteButton() {
     if (urlInput.value.trim() === '') {
@@ -85,38 +82,37 @@ document.getElementById('parseButton').addEventListener('click', async () => {
         return;
     }
     
+    // 检查网络连接
+    if (!navigator.onLine) {
+        showError('网络连接不可用，请检查网络连接。');
+        return;
+    }
+    
     // 显示加载状态
     document.getElementById('loading').style.display = 'block';
     document.getElementById('loadingText').textContent = '正在解析视频，请稍候...';
     
     try {
-        // 清空之前的结果
-        apiResults = [];
-        
-        // 并行调用三个API
-        document.getElementById('loadingText').textContent = '正在调用解析接口...';
-        const [result1, result2, result3] = await Promise.allSettled([
-            parseWithAPI1(finalUrl),
-            parseWithAPI2(finalUrl),
-            parseWithAPI3(finalUrl)
-        ]);
-        
-        // 收集所有成功的结果
-        if (result1.status === 'fulfilled' && result1.value.success) {
-            apiResults.push({...result1.value, api: 1});
-        }
-        if (result2.status === 'fulfilled' && result2.value.success) {
-            apiResults.push({...result2.value, api: 2});
-        }
-        if (result3.status === 'fulfilled' && result3.value.success) {
-            apiResults.push({...result3.value, api: 3});
-        }
-        
-        if (apiResults.length > 0) {
-            // 显示第一个API的结果
-            displayResult(apiResults[0].data, apiResults[0].api, 0);
+        // 自动选择API：依次尝试三个API
+        const result = await parseWithAPI1(finalUrl);
+        if (result.success && result.data.video_url) {
+            displayResult(result.data, 1);
         } else {
-            showError('所有API都无法解析此链接，请检查链接是否正确或尝试其他平台。');
+            // API 1 失败或没有视频链接，尝试 API 2
+            document.getElementById('loadingText').textContent = '正在尝试备用解析接口...';
+            const result2 = await parseWithAPI2(finalUrl);
+            if (result2.success && result2.data.video_url) {
+                displayResult(result2.data, 2);
+            } else {
+                // API 2 失败或没有视频链接，尝试 API 3
+                document.getElementById('loadingText').textContent = '正在尝试第三个解析接口...';
+                const result3 = await parseWithAPI3(finalUrl);
+                if (result3.success && result3.data.video_url) {
+                    displayResult(result3.data, 3);
+                } else {
+                    showError('三个API都无法解析此链接，请检查链接是否正确或尝试其他平台。');
+                }
+            }
         }
     } catch (error) {
         console.error('解析过程中出错：', error);
@@ -125,18 +121,19 @@ document.getElementById('parseButton').addEventListener('click', async () => {
     }
 });
 
-// 使用第一个API解析
+// 使用第一个API解析 - 根据新的返回格式调整
 async function parseWithAPI1(url) {
     try {
         const response = await fetch(`https://api.xinyew.cn/api/douyinjx?url=${encodeURIComponent(url)}`);
         const result = await response.json();
         
+        console.log('API1 返回:', result);
+        
         if (result.code === 200) {
             return {
                 success: true,
                 data: {
-                    video_url: result.data.video_url,
-                    play_url: result.data.play_url,
+                    video_url: result.data.video_url || result.data.play_url,
                     parse_time: result.data.parse_time,
                     nickname: result.data.additional_data[0].nickname,
                     signature: result.data.additional_data[0].signature,
@@ -153,11 +150,14 @@ async function parseWithAPI1(url) {
     }
 }
 
-// 使用第二个API解析
+// 使用第二个API解析 - 根据新的返回格式调整
 async function parseWithAPI2(url) {
     try {
+        // 使用HTTPS端点
         const response = await fetch(`https://gy.api.xiaotuo.net/jx?id=${encodeURIComponent(url)}`);
         const result = await response.json();
+        
+        console.log('API2 返回:', result);
         
         if (result.success && result.media_type === 'video') {
             // 处理头像URL
@@ -174,7 +174,6 @@ async function parseWithAPI2(url) {
                 success: true,
                 data: {
                     video_url: result.items[0].url,
-                    play_url: result.items[0].url,
                     parse_time: 'N/A',
                     nickname: result.author ? result.author.nickname : '未知',
                     signature: '',
@@ -191,18 +190,19 @@ async function parseWithAPI2(url) {
     }
 }
 
-// 使用第三个API解析
+// 使用第三个API解析 - 根据新的返回格式调整
 async function parseWithAPI3(url) {
     try {
         const response = await fetch(`https://api.guiguiya.com/api/video_qsy/juhe?url=${encodeURIComponent(url)}`);
         const result = await response.json();
+        
+        console.log('API3 返回:', result);
         
         if (result.code === 200) {
             return {
                 success: true,
                 data: {
                     video_url: result.data.url,
-                    play_url: result.data.url,
                     parse_time: 'N/A',
                     nickname: result.data.author,
                     signature: '',
@@ -219,64 +219,32 @@ async function parseWithAPI3(url) {
     }
 }
 
-// 显示解析结果
-function displayResult(data, apiSource, resultIndex) {
+// 显示解析结果 - 增强视频加载逻辑
+function displayResult(data, apiSource) {
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
     
     // 显示视频详情
     document.getElementById('video').classList.remove('hidden');
-    document.getElementById('parse_time').textContent = data.parse_time;
+    document.getElementById('parse_time').textContent = data.parse_time || 'N/A';
     
     // 显示视频加载状态
     const videoLoading = document.getElementById('videoLoading');
-    videoLoading.classList.remove('hidden');
-    
-    // 设置视频播放器源
     const videoPlayer = document.getElementById('videoPlayer');
     const videoStatus = document.getElementById('video_status');
     
-    // 尝试使用play_url（如果有），否则使用video_url
-    const videoUrl = data.play_url || data.video_url;
-    videoPlayer.src = videoUrl;
-    videoStatus.textContent = '加载中...';
+    videoLoading.classList.remove('hidden');
+    videoStatus.textContent = '正在加载视频...';
     
-    // 监听视频加载事件
-    const onLoadedData = () => {
-        videoLoading.classList.add('hidden');
-        videoStatus.textContent = '已加载';
-        showSuccess(`视频解析成功！使用API${apiSource}，点击播放按钮即可观看。`);
-    };
+    // 重置视频播放器
+    videoPlayer.pause();
+    videoPlayer.currentTime = 0;
     
-    const onCanPlay = () => {
-        videoStatus.textContent = '可以播放';
-    };
+    // 设置视频播放器源，添加跨域属性
+    videoPlayer.setAttribute('crossorigin', 'anonymous');
     
-    const onError = (e) => {
-        console.error('视频加载错误:', e);
-        
-        // 移除当前事件监听器
-        videoPlayer.removeEventListener('loadeddata', onLoadedData);
-        videoPlayer.removeEventListener('canplay', onCanPlay);
-        videoPlayer.removeEventListener('error', onError);
-        
-        // 尝试下一个API结果
-        if (resultIndex < apiResults.length - 1) {
-            videoStatus.textContent = `API${apiSource}加载失败，尝试下一个...`;
-            setTimeout(() => {
-                displayResult(apiResults[resultIndex + 1].data, apiResults[resultIndex + 1].api, resultIndex + 1);
-            }, 1000);
-        } else {
-            videoLoading.classList.add('hidden');
-            videoStatus.textContent = '加载失败';
-            showError('所有视频源都加载失败，请尝试下载视频。');
-        }
-    };
-    
-    // 添加事件监听器
-    videoPlayer.addEventListener('loadeddata', onLoadedData);
-    videoPlayer.addEventListener('canplay', onCanPlay);
-    videoPlayer.addEventListener('error', onError);
+    // 使用增强的视频加载方法
+    loadVideoWithRetry(data.video_url, videoPlayer, videoLoading, videoStatus, 3);
     
     // 设置下载按钮
     document.getElementById('downloadBtn').onclick = () => {
@@ -291,17 +259,104 @@ function displayResult(data, apiSource, resultIndex) {
     
     // 设置头像，添加错误处理
     const avatar = document.getElementById('avatar');
-    avatar.src = data.avatar || '';
+    if (data.avatar) {
+        avatar.src = data.avatar;
+    } else {
+        avatar.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lm77niYc8L3RleHQ+PC9zdmc+';
+    }
+    
+    // 显示成功消息
+    showSuccess(`视频解析成功！使用的API: ${apiSource}，点击播放按钮即可观看。`);
 }
 
-// 下载视频
+// 增强的视频加载方法，支持重试
+function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElement, maxRetries = 3) {
+    let retryCount = 0;
+    
+    function attemptLoad() {
+        // 清除之前的事件监听器
+        videoElement.onloadeddata = null;
+        videoElement.onerror = null;
+        
+        // 添加时间戳避免缓存
+        const timestamp = new Date().getTime();
+        const urlWithTimestamp = videoUrl + (videoUrl.includes('?') ? '&' : '?') + '_t=' + timestamp;
+        
+        statusElement.textContent = `加载视频中... (${retryCount + 1}/${maxRetries + 1})`;
+        videoElement.src = urlWithTimestamp;
+        
+        // 设置超时
+        const timeout = setTimeout(() => {
+            if (videoElement.readyState === 0) {
+                handleLoadError('加载超时');
+            }
+        }, 15000);
+        
+        videoElement.onloadeddata = () => {
+            clearTimeout(timeout);
+            loadingElement.classList.add('hidden');
+            statusElement.textContent = '已加载';
+            console.log('视频加载成功');
+        };
+        
+        videoElement.oncanplay = () => {
+            statusElement.textContent = '可以播放';
+        };
+        
+        videoElement.onerror = (e) => {
+            clearTimeout(timeout);
+            handleLoadError('视频加载错误');
+        };
+        
+        videoElement.load();
+    }
+    
+    function handleLoadError(errorMsg) {
+        console.error(`${errorMsg}:`, videoUrl);
+        retryCount++;
+        
+        if (retryCount <= maxRetries) {
+            statusElement.textContent = `${errorMsg}，正在重试... (${retryCount}/${maxRetries})`;
+            setTimeout(attemptLoad, 2000);
+        } else {
+            loadingElement.classList.add('hidden');
+            statusElement.textContent = '加载失败';
+            showError('视频加载失败，请尝试下载视频或使用其他解析接口。');
+        }
+    }
+    
+    attemptLoad();
+}
+
+// 下载视频 - 增强版本
 function downloadVideo(videoUrl) {
-    const a = document.createElement('a');
-    a.href = videoUrl;
-    a.download = 'video.mp4';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+        // 创建下载链接
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        a.download = `video_${Date.now()}.mp4`;
+        a.target = '_blank';
+        a.style.display = 'none';
+        
+        // 添加并触发点击
+        document.body.appendChild(a);
+        a.click();
+        
+        // 延迟移除元素
+        setTimeout(() => {
+            document.body.removeChild(a);
+        }, 100);
+        
+        showSuccess('开始下载视频，如果下载失败请右键视频另存为。');
+        
+    } catch (error) {
+        console。error('下载失败:'， error);
+        
+        // 备用方法：在新窗口打开
+        window.open(videoUrl, '_blank');
+        
+        showError('自动下载失败，视频已在新窗口打开，请右键另存为。');
+    }
 }
 
 // 显示错误消息
@@ -320,6 +375,13 @@ function showError(message) {
     
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
+    
+    // 5秒后自动移除错误消息
+    setTimeout(() => {
+        if (errorDiv.parentNode) {
+            errorDiv.parentNode.removeChild(errorDiv);
+        }
+    }, 5000);
 }
 
 // 显示成功消息
@@ -335,6 +397,13 @@ function showSuccess(message) {
     successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
     
     document.querySelector('.card').appendChild(successDiv);
+    
+    // 3秒后自动移除成功消息
+    setTimeout(() => {
+        if (successDiv.parentNode) {
+            successDiv.parentNode.removeChild(successDiv);
+        }
+    }, 3000);
 }
 
 // 初始更新按钮状态
