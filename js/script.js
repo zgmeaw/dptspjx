@@ -350,7 +350,7 @@ function downloadVideo(videoUrl) {
         showSuccess('开始下载视频，如果下载失败请右键视频另存为。');
         
     } catch (error) {
-        console。error('下载失败:'， error);
+        console.error('下载失败:', error);
         
         // 备用方法：在新窗口打开
         window.open(videoUrl, '_blank');
