@@ -54,13 +54,13 @@ function extractUrlFromText(text) {
     if (matches && matches.length > 0) {
         // 找到第一个匹配的URL
         const url = matches[0];
-        // 直接更新输入框，不进行条件判断
-        urlInput.value = url;
-        updatePasteButton();
-        showSuccess(`已自动提取链接: ${url}`);
-        return true; // 表示成功提取
+        // 只有当当前输入框内容不等于提取的URL时才更新
+        if (urlInput.value !== url) {
+            urlInput.value = url;
+            updatePasteButton();
+            showSuccess(`已自动提取链接: ${url}`);
+        }
     }
-    return false; // 表示没有提取到URL
 }
 
 // 解析按钮点击事件
@@ -70,7 +70,7 @@ document.getElementById('parseButton').addEventListener('click', async () => {
     // 先尝试从输入内容中提取链接
     extractUrlFromText(url);
     
-    // 使用提取后的URL（输入框已经更新）
+    // 使用提取后的URL
     const finalUrl = urlInput.value.trim();
     
     // 隐藏之前的结果
