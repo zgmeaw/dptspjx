@@ -2,6 +2,9 @@
 const pasteButton = document.getElementById('pasteButton');
 const urlInput = document.getElementById('url');
 
+// 存储所有API的解析结果
+let apiResults = [];
+
 // 更新按钮状态
 function updatePasteButton() {
     if (urlInput.value.trim() === '') {
@@ -87,26 +90,33 @@ document.getElementById('parseButton').addEventListener('click', async () => {
     document.getElementById('loadingText').textContent = '正在解析视频，请稍候...';
     
     try {
-        // 自动选择API：依次尝试三个API
-        const result = await parseWithAPI1(finalUrl);
-        if (result.success && result.data.video_url) {
-            displayResult(result.data, 1);
+        // 清空之前的结果
+        apiResults = [];
+        
+        // 并行调用三个API
+        document.getElementById('loadingText').textContent = '正在调用解析接口...';
+        const [result1, result2, result3] = await Promise.allSettled([
+            parseWithAPI1(finalUrl),
+            parseWithAPI2(finalUrl),
+            parseWithAPI3(finalUrl)
+        ]);
+        
+        // 收集所有成功的结果
+        if (result1.status === 'fulfilled' && result1.value.success) {
+            apiResults.push({...result1.value, api: 1});
+        }
+        if (result2.status === 'fulfilled' && result2.value.success) {
+            apiResults.push({...result2.value, api: 2});
+        }
+        if (result3.status === 'fulfilled' && result3.value.success) {
+            apiResults.push({...result3.value, api: 3});
+        }
+        
+        if (apiResults.length > 0) {
+            // 显示第一个API的结果
+            displayResult(apiResults[0].data, apiResults[0].api, 0);
         } else {
-            // API 1 失败或没有视频链接，尝试 API 2
-            document.getElementById('loadingText').textContent = '正在尝试备用解析接口...';
-            const result2 = await parseWithAPI2(finalUrl);
-            if (result2.success && result2.data.video_url) {
-                displayResult(result2.data, 2);
-            } else {
-                // API 2 失败或没有视频链接，尝试 API 3
-                document.getElementById('loadingText').textContent = '正在尝试第三个解析接口...';
-                const result3 = await parseWithAPI3(finalUrl);
-                if (result3.success && result3.data.video_url) {
-                    displayResult(result3.data, 3);
-                } else {
-                    showError('三个API都无法解析此链接，请检查链接是否正确或尝试其他平台。');
-                }
-            }
+            showError('所有API都无法解析此链接，请检查链接是否正确或尝试其他平台。');
         }
     } catch (error) {
         console.error('解析过程中出错：', error);
@@ -126,6 +136,7 @@ async function parseWithAPI1(url) {
                 success: true,
                 data: {
                     video_url: result.data.video_url,
+                    play_url: result.data.play_url,
                     parse_time: result.data.parse_time,
                     nickname: result.data.additional_data[0].nickname,
                     signature: result.data.additional_data[0].signature,
@@ -163,6 +174,7 @@ async function parseWithAPI2(url) {
                 success: true,
                 data: {
                     video_url: result.items[0].url,
+                    play_url: result.items[0].url,
                     parse_time: 'N/A',
                     nickname: result.author ? result.author.nickname : '未知',
                     signature: '',
@@ -190,6 +202,7 @@ async function parseWithAPI3(url) {
                 success: true,
                 data: {
                     video_url: result.data.url,
+                    play_url: result.data.url,
                     parse_time: 'N/A',
                     nickname: result.data.author,
                     signature: '',
@@ -207,7 +220,7 @@ async function parseWithAPI3(url) {
 }
 
 // 显示解析结果
-function displayResult(data, apiSource) {
+function displayResult(data, apiSource, resultIndex) {
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
     
@@ -223,25 +236,47 @@ function displayResult(data, apiSource) {
     const videoPlayer = document.getElementById('videoPlayer');
     const videoStatus = document.getElementById('video_status');
     
-    videoPlayer.src = data.video_url;
+    // 尝试使用play_url（如果有），否则使用video_url
+    const videoUrl = data.play_url || data.video_url;
+    videoPlayer.src = videoUrl;
     videoStatus.textContent = '加载中...';
     
     // 监听视频加载事件
-    videoPlayer.addEventListener('loadeddata', () => {
+    const onLoadedData = () => {
         videoLoading.classList.add('hidden');
         videoStatus.textContent = '已加载';
-    });
+        showSuccess(`视频解析成功！使用API${apiSource}，点击播放按钮即可观看。`);
+    };
     
-    videoPlayer.addEventListener('canplay', () => {
+    const onCanPlay = () => {
         videoStatus.textContent = '可以播放';
-    });
+    };
     
-    videoPlayer.addEventListener('error', (e) => {
+    const onError = (e) => {
         console.error('视频加载错误:', e);
-        videoLoading.classList.add('hidden');
-        videoStatus.textContent = '加载失败';
-        showError('视频加载失败，请尝试下载视频。');
-    });
+        
+        // 移除当前事件监听器
+        videoPlayer.removeEventListener('loadeddata', onLoadedData);
+        videoPlayer.removeEventListener('canplay', onCanPlay);
+        videoPlayer.removeEventListener('error', onError);
+        
+        // 尝试下一个API结果
+        if (resultIndex < apiResults.length - 1) {
+            videoStatus.textContent = `API${apiSource}加载失败，尝试下一个...`;
+            setTimeout(() => {
+                displayResult(apiResults[resultIndex + 1].data, apiResults[resultIndex + 1].api, resultIndex + 1);
+            }, 1000);
+        } else {
+            videoLoading.classList.add('hidden');
+            videoStatus.textContent = '加载失败';
+            showError('所有视频源都加载失败，请尝试下载视频。');
+        }
+    };
+    
+    // 添加事件监听器
+    videoPlayer.addEventListener('loadeddata', onLoadedData);
+    videoPlayer.addEventListener('canplay', onCanPlay);
+    videoPlayer.addEventListener('error', onError);
     
     // 设置下载按钮
     document.getElementById('downloadBtn').onclick = () => {
@@ -257,9 +292,6 @@ function displayResult(data, apiSource) {
     // 设置头像，添加错误处理
     const avatar = document.getElementById('avatar');
     avatar.src = data.avatar || '';
-    
-    // 显示成功消息
-    showSuccess(`视频解析成功！点击播放按钮即可观看。`);
 }
 
 // 下载视频
