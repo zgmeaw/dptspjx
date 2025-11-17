@@ -246,9 +246,9 @@ function displayResult(data, apiSource) {
     // 使用增强的视频加载方法
     loadVideoWithRetry(data.video_url, videoPlayer, videoLoading, videoStatus, 3);
     
-    // 设置下载按钮
+    // 设置下载按钮 - 传递视频URL和描述信息
     document.getElementById('downloadBtn').onclick = () => {
-        downloadVideo(data.video_url);
+        downloadVideo(data.video_url, data.desc || 'video');
     };
     
     // 显示作者信息
@@ -328,34 +328,47 @@ function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElemen
     attemptLoad();
 }
 
-// 下载视频 - 增强版本
-function downloadVideo(videoUrl) {
+// 下载视频 - 修复版本，确保触发下载而不是播放
+function downloadVideo(videoUrl, filename = 'video') {
     try {
-        // 创建下载链接
+        // 清理文件名，移除非法字符
+        const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
+        
+        // 方法1: 创建隐藏的a标签并触发点击下载
         const a = document.createElement('a');
         a.href = videoUrl;
-        a.download = `video_${Date.now()}.mp4`;
-        a.target = '_blank';
+        a.download = `${cleanFilename}_${Date.now()}.mp4`;
+        
+        // 设置属性确保触发下载
         a.style.display = 'none';
+        a.target = '_self'; // 使用_self而不是_blank
         
-        // 添加并触发点击
         document.body.appendChild(a);
-        a.click();
         
-        // 延迟移除元素
-        setTimeout(() => {
-            document.body.removeChild(a);
-        }, 100);
+        // 触发点击事件
+        const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: false
+        });
+        a.dispatchEvent(clickEvent);
         
-        showSuccess('开始下载视频，如果下载失败请右键视频另存为。');
+        document.body.removeChild(a);
+        
+        showSuccess('开始下载视频，请查看浏览器下载列表。');
         
     } catch (error) {
         console.error('下载失败:', error);
         
-        // 备用方法：在新窗口打开
-        window.open(videoUrl, '_blank');
-        
-        showError('自动下载失败，视频已在新窗口打开，请右键另存为。');
+        // 方法2: 如果方法1失败，使用window.location（可能会在新标签页打开）
+        try {
+            window.location.href = videoUrl;
+            showError('自动下载失败，视频链接已打开，请右键另存为。');
+        } catch (e) {
+            // 方法3: 最后的手段，在新窗口打开
+            window.open(videoUrl, '_blank');
+            showError('下载失败，视频已在新窗口打开，请右键另存为。');
+        }
     }
 }
 
