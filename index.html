@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AW 多平台视频解析器</title>
+    <!-- 标签页图标 -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTIiIGZpbGw9InVybCgjcGFpbnQwX2xpbmVhcikiLz4KPHBhdGggZD0iTTI0IDIwSDRWNDRIMjBWMzZIMjRWMjBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNNDAgMjBINjBWNDRINDBWMzZIMzZWMjBINDBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMzIgMTJDMzIuNTUyMyAxMiAzMyAxMi40NDc3IDMzIDEzVjE5QzMzIDE5LjU1MjMgMzIuNTUyMyAyMCAzMiAyMEMzMS40NDc3IDIwIDMxIDE5LjU1MjMgMzEgMTlWMTNDMzEgMTIuNDQ3NyAzMS40NDc3IDEyIDMyIDEyWiIgZmlsbD0id2hpdGUiLz4KPGRlZnM+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQwX2xpbmVhciIgeDE9IjMyIiB5MT0iMCIgeDI9IjMyIiB5Mj0iNjQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iI0ZGMDA1MCIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyNUY0RUUiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-film"></i> AW 多平台视频解析器</h1>
+            <p class="subtitle">支持抖音、快手、小红书、皮皮虾、最右、微视等平台</p>
+        </header>
+        
+        <div class="card">
+            <h2><i class="fas fa-link"></i> 输入视频链接</h2>
+            <div class="input-group">
+                <input type="text" id="url" placeholder="请输入或粘贴视频链接...">
+                <button id="pasteButton" class="paste-btn">
+                    <i class="fas fa-paste"></i> 粘贴
+                </button>
+                <button id="parseButton">
+                    <i class="fas fa-play-circle"></i> 解析视频
+                </button>
+            </div>
+            <div class="help-text">
+                支持平台: 抖音、快手、小红书、皮皮虾、最右、微视等
+            </div>
+            <div class="api-info">
+                系统将自动选择最佳解析接口
+            </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">正在解析视频，请稍候...</p>
+        </div>
+        
+        <div id="video" class="card hidden">
+            <h2><i class="fas fa-video"></i> 视频详情</h2>
+            <div class="video-container">
+                <div class="video-player">
+                    <div class="video-loading" id="videoLoading">
+                        <div class="loading-spinner"></div>
+                        <p>视频加载中...</p>
+                    </div>
+                    <video id="videoPlayer" controls>
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+                <div class="video-actions">
+                    <button class="download-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i> 下载视频
+                    </button>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="parse_time">0ms</div>
+                        <div class="stat-label">解析耗时</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="video_status">等待加载</div>
+                        <div class="stat-label">视频状态</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="additional_data" class="card hidden">
+            <h2><i class="fas fa-user"></i> 作者信息</h2>
+            <div class="author-info">
+                <div class="author-header">
+                    <img id="avatar" class="avatar" src="" alt="作者头像" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lm77niYc8L3RleHQ+PC9zdmc+'">
+                    <div class="author-details">
+                        <p><strong>昵称：</strong> <span id="nickname">未知</span></p>
+                        <p><strong>签名：</strong> <span id="signature">暂无签名</span></p>
+                        <p><strong>描述：</strong> <span id="desc">暂无描述</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="profile-section">
+            <a href="https://aw.meaw.xx.kg/" class="profile-link" target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                点击跳转AW主页
+            </a>
+        </div>
+        
+        <footer>
+            <p>AW 多平台视频解析器 &copy; 2025 | 仅供学习交流使用，如有侵权，请联系我们删除</p>
+        </footer>
+    </div>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
