@@ -262,7 +262,7 @@ async function parseWithAPI4(url) {
     }
 }
 
-// 显示解析结果
+// 显示解析结果 - 修复版本：直接使用API返回的URL
 function displayResult(data, apiSource) {
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
@@ -277,7 +277,7 @@ function displayResult(data, apiSource) {
     const videoStatus = document.getElementById('video_status');
     
     videoLoading.classList.remove('hidden');
-    videoStatus.textContent = '正在尝试加载视频...';
+    videoStatus.textContent = '正在加载视频...';
     
     // 重置视频播放器
     videoPlayer.pause();
@@ -288,19 +288,39 @@ function displayResult(data, apiSource) {
     videoPlayer.setAttribute('crossorigin', 'anonymous');
     videoPlayer.setAttribute('preload', 'auto');
     
-    // 收集所有可用的视频URL
-    const videoUrls = [];
-    if (data.video_url) videoUrls.push(data.video_url);
-    if (data.play_url) videoUrls.push(data.play_url);
+    // 直接使用API返回的视频URL
+    const videoUrl = data.video_url;
+    console.log('设置视频URL:', videoUrl);
     
-    // 直接显示备用选项，因为视频大概率无法在线播放
-    showFallbackOptions(videoUrls, data.desc || 'video');
-    videoLoading.classList.add('hidden');
-    videoStatus.textContent = '视频无法在线播放';
+    // 设置视频播放器源
+    videoPlayer.src = videoUrl;
+    videoPlayer.load();
     
-    // 设置下载按钮
+    // 监听视频加载事件
+    videoPlayer.addEventListener('loadeddata', () => {
+        videoLoading.classList.add('hidden');
+        videoStatus.textContent = '已加载';
+        console.log('视频加载成功');
+        showSuccess('视频加载成功！点击播放按钮即可观看。');
+    });
+    
+    videoPlayer.addEventListener('canplay', () => {
+        videoStatus.textContent = '可以播放';
+    });
+    
+    videoPlayer.addEventListener('error', (e) => {
+        console.error('视频加载错误:', e);
+        videoLoading.classList.add('hidden');
+        videoStatus.textContent = '加载失败';
+        
+        // 显示备用下载选项
+        showFallbackOptions([videoUrl], data.desc || 'video');
+        showError('视频加载失败，但您仍然可以下载视频。');
+    });
+    
+    // 设置下载按钮 - 直接使用API返回的视频URL
     document.getElementById('downloadBtn').onclick = () => {
-        downloadVideo(videoUrls[0], data.desc || 'video');
+        downloadVideo(videoUrl, data.desc || 'video');
     };
     
     // 显示作者信息
@@ -318,10 +338,10 @@ function displayResult(data, apiSource) {
     }
     
     // 显示成功消息
-    showSuccess(`视频解析成功！使用的API: ${apiSource}。由于平台限制，视频可能无法在线播放，但可以下载。`);
+    showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
 }
 
-// 显示备用选项
+// 显示备用选项（仅在视频加载失败时显示）
 function showFallbackOptions(videoUrls, desc) {
     const videoContainer = document.querySelector('.video-container');
     const existingFallback = document.querySelector('.video-fallback');
@@ -340,7 +360,7 @@ function showFallbackOptions(videoUrls, desc) {
         
         fallbackDiv.innerHTML = `
             <div class="fallback-message">
-                <p><i class="fas fa-exclamation-triangle"></i> 由于平台限制，视频无法在线播放</p>
+                <p><i class="fas fa-exclamation-triangle"></i> 视频无法在线播放</p>
                 <p class="fallback-tips">提示：您仍然可以下载视频到本地观看</p>
                 <div class="download-options">
                     ${downloadButtons}
