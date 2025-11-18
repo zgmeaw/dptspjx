@@ -683,3 +683,261 @@ footer {
         padding: 12px;
     }
 }
+
+/* 在原有CSS基础上添加以下样式 */
+
+/* 移动端下载提示 */
+.mobile-download-tip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.mobile-download-tip.hidden {
+    display: none;
+}
+
+.tip-content {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.tip-content h3 {
+    color: var(--primary);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.tip-content ol {
+    text-align: left;
+    margin: 15px 0;
+    padding-left: 20px;
+}
+
+.tip-content li {
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.tip-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.tip-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tip-btn:first-child {
+    background: var(--primary);
+    color: white;
+}
+
+.tip-btn.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.tip-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* 浏览器兼容性警告 */
+.browser-warning {
+    background: #fff3cd;
+    color: #856404;
+    padding: 12px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #ffeaa7;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.browser-warning.hidden {
+    display: none;
+}
+
+.close-warning {
+    background: none;
+    border: none;
+    color: #856404;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto;
+}
+
+.close-warning:hover {
+    color: #333;
+}
+
+/* 移动端下载指南 */
+.mobile-guide {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+    border-left: 4px solid var(--primary);
+}
+
+.mobile-guide.hidden {
+    display: none;
+}
+
+.mobile-guide h4 {
+    color: var(--dark);
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.guide-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.step-number {
+    background: var(--primary);
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.step p {
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* 移动端帮助按钮 */
+.mobile-help-btn {
+    background: linear-gradient(to right, #6c757d, #5a6268);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 140px;
+    justify-content: center;
+}
+
+.mobile-help-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+/* 移动端特定优化 */
+@media (max-width: 768px) {
+    .mobile-download-tip {
+        padding: 15px;
+    }
+    
+    .tip-content {
+        padding: 20px;
+    }
+    
+    .tip-actions {
+        flex-direction: column;
+    }
+    
+    .video-actions {
+        flex-direction: column;
+    }
+    
+    .mobile-help-btn, .download-btn {
+        width: 100%;
+    }
+    
+    .guide-steps {
+        gap: 15px;
+    }
+    
+    .step {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+    }
+    
+    .step-number {
+        align-self: center;
+    }
+}
+
+/* 小屏幕手机优化 */
+@media (max-width: 480px) {
+    .tip-content {
+        padding: 15px;
+    }
+    
+    .tip-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .mobile-guide {
+        padding: 15px;
+    }
+    
+    .browser-warning {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mobile-download-tip {
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    
+    .tip-content {
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+}

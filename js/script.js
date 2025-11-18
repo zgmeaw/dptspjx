@@ -2,6 +2,65 @@
 const pasteButton = document.getElementById('pasteButton');
 const urlInput = document.getElementById('url');
 
+// 检测移动端和浏览器
+function detectPlatform() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isProblematicBrowser = /Via|XBrowser|Edge|Edg\//i.test(navigator.userAgent);
+    
+    return { isMobile, isProblematicBrowser };
+}
+
+// 显示移动端下载提示
+function showMobileDownloadTip() {
+    const neverShow = localStorage.getItem('neverShowDownloadTip');
+    if (!neverShow) {
+        setTimeout(() => {
+            document.getElementById('mobileDownloadTip').classList.remove('hidden');
+        }, 1000);
+    }
+}
+
+// 显示浏览器警告
+function showBrowserWarning() {
+    const { isProblematicBrowser } = detectPlatform();
+    if (isProblematicBrowser) {
+        document.getElementById('browserWarning').classList.remove('hidden');
+    }
+}
+
+// 初始化平台检测
+function initPlatformDetection() {
+    const { isMobile } = detectPlatform();
+    
+    if (isMobile) {
+        showMobileDownloadTip();
+        // 移动端默认显示下载指南
+        document.getElementById('mobileGuide').classList.remove('hidden');
+    }
+    
+    showBrowserWarning();
+    
+    // 设置提示关闭事件
+    document.getElementById('closeTip').addEventListener('click', () => {
+        document.getElementById('mobileDownloadTip').classList.add('hidden');
+    });
+    
+    document.getElementById('neverShowTip').addEventListener('click', () => {
+        localStorage.setItem('neverShowDownloadTip', 'true');
+        document.getElementById('mobileDownloadTip').classList.add('hidden');
+    });
+    
+    document.getElementById('closeWarning').addEventListener('click', () => {
+        document.getElementById('browserWarning').classList.add('hidden');
+    });
+    
+    // 移动端帮助按钮
+    document.getElementById('mobileHelpBtn').addEventListener('click', () => {
+        const guide = document.getElementById('mobileGuide');
+        guide.classList.toggle('hidden');
+    });
+}
+
 // 更新按钮状态
 function updatePasteButton() {
     if (urlInput.value.trim() === '') {
@@ -266,7 +325,7 @@ async function parseWithAPI4(url) {
     }
 }
 
-// 显示解析结果 - 修复版本：使用正确的URL并优化下载
+// 显示解析结果
 function displayResult(data, apiSource) {
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
@@ -330,9 +389,9 @@ function displayResult(data, apiSource) {
         showError('视频加载失败，但您仍然可以下载视频。');
     });
     
-    // 设置下载按钮 - 使用增强的下载功能
+    // 设置下载按钮 - 使用移动端优化的下载功能
     document.getElementById('downloadBtn').onclick = () => {
-        downloadVideoEnhanced(videoUrl, data.desc || 'video', data.original_video_url, data.play_url);
+        mobileDownloadVideo(videoUrl, data.desc || 'video');
     };
     
     // 显示作者信息
@@ -351,6 +410,64 @@ function displayResult(data, apiSource) {
     
     // 显示成功消息
     showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
+}
+
+// 移动端优化的下载功能
+function mobileDownloadVideo(videoUrl, filename = 'video') {
+    const { isMobile } = detectPlatform();
+    
+    // 清理文件名，移除非法字符
+    const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
+    
+    // 修复视频URL - 确保使用HTTPS
+    let finalUrl = videoUrl;
+    if (window.location.protocol === 'https:' && videoUrl.startsWith('http:')) {
+        finalUrl = videoUrl.replace('http:', 'https:');
+    }
+    
+    if (isMobile) {
+        // 移动端策略：直接打开链接，让用户手动下载
+        const newTab = window.open(finalUrl, '_blank');
+        
+        // 显示移动端下载提示
+        showMobileDownloadTip();
+        
+        if (!newTab || newTab.closed || typeof newTab.closed == 'undefined') {
+            showError('新窗口被阻止，请允许弹窗或长按下面的链接手动下载。');
+            
+            // 提供手动下载链接
+            const manualDownload = document.createElement('div');
+            manualDownload.className = 'manual-download';
+            manualDownload.innerHTML = `
+                <p>如果下载没有开始，请 <a href="${finalUrl}" target="_blank">点击这里打开视频</a> 然后长按视频选择下载</p>
+            `;
+            document.querySelector('.video-actions').appendChild(manualDownload);
+        } else {
+            showSuccess('视频已在新窗口打开，请长按视频选择"下载视频"');
+        }
+    } else {
+        // 桌面端策略：尝试直接下载
+        try {
+            const a = document.createElement('a');
+            a.href = finalUrl;
+            a.download = `${cleanFilename}_${Date.now()}.mp4`;
+            a.target = '_blank';
+            a.style.display = 'none';
+            
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+            }, 100);
+            
+            showSuccess('下载已开始，请查看浏览器下载列表。');
+        } catch (error) {
+            console.error('下载失败:', error);
+            window.open(finalUrl, '_blank');
+            showError('自动下载失败，视频已在新窗口打开，请右键另存为。');
+        }
+    }
 }
 
 // 显示备用选项（仅在视频加载失败时显示）
@@ -390,7 +507,7 @@ function showFallbackOptions(videoUrls, desc) {
             button.onclick = () => {
                 const url = button.getAttribute('data-url');
                 const desc = button.getAttribute('data-desc');
-                downloadVideoEnhanced(url, desc);
+                mobileDownloadVideo(url, desc);
             };
         });
         
@@ -398,94 +515,6 @@ function showFallbackOptions(videoUrls, desc) {
         fallbackDiv.querySelector('.fallback-try-again-btn').onclick = () => {
             document.getElementById('parseButton').click();
         };
-    }
-}
-
-// 增强的下载功能 - 解决刷新问题
-function downloadVideoEnhanced(primaryUrl, filename = 'video', backupUrl1, backupUrl2) {
-    try {
-        // 清理文件名，移除非法字符
-        const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
-        
-        // 修复视频URL - 确保使用HTTPS
-        let finalUrl = primaryUrl;
-        if (window.location.protocol === 'https:' && primaryUrl.startsWith('http:')) {
-            finalUrl = primaryUrl.replace('http:', 'https:');
-        }
-        
-        // 方法1: 创建隐藏的iframe来触发下载（避免页面跳转）
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = finalUrl;
-        document.body.appendChild(iframe);
-        
-        // 方法2: 同时在新标签页打开（用户手动下载）
-        const newTab = window.open(finalUrl, '_blank');
-        
-        // 如果新标签页被阻止，提示用户
-        if (!newTab || newTab.closed || typeof newTab.closed == 'undefined') {
-            showError('弹窗被阻止，请允许弹窗或使用下面的手动下载链接。');
-            
-            // 提供手动下载链接
-            const manualDownload = document.createElement('div');
-            manualDownload.className = 'manual-download';
-            manualDownload.innerHTML = `
-                <p>如果下载没有自动开始，请 <a href="${finalUrl}" target="_blank" download="${cleanFilename}.mp4">点击这里手动下载</a></p>
-            `;
-            document.querySelector('.video-actions').appendChild(manualDownload);
-        } else {
-            showSuccess('下载页面已打开，如果下载没有自动开始，请右键视频选择"另存为"。');
-        }
-        
-        // 清理iframe
-        setTimeout(() => {
-            if (iframe.parentNode) {
-                iframe.parentNode.removeChild(iframe);
-            }
-        }, 5000);
-        
-        // 设置备用下载检查
-        setTimeout(() => {
-            checkDownloadSuccess(finalUrl, backupUrl1, backupUrl2, cleanFilename);
-        }, 3000);
-        
-    } catch (error) {
-        console.error('下载失败:', error);
-        
-        // 备用方法：直接在新窗口打开
-        window.open(primaryUrl, '_blank');
-        showError('自动下载失败，视频已在新窗口打开，请右键另存为。');
-    }
-}
-
-// 检查下载是否成功，如果不成功尝试备用URL
-function checkDownloadSuccess(primaryUrl, backupUrl1, backupUrl2, filename) {
-    // 这里可以添加更复杂的检测逻辑
-    // 目前只是简单地提供备用选项
-    if (backupUrl1 || backupUrl2) {
-        const fallbackSection = document.querySelector('.video-fallback');
-        if (!fallbackSection) {
-            const backupDiv = document.createElement('div');
-            backupDiv.className = 'backup-download';
-            backupDiv.innerHTML = `
-                <div class="backup-message">
-                    <p><i class="fas fa-info-circle"></i> 如果上面的下载失败，请尝试备用链接：</p>
-                    <div class="backup-options">
-                        ${backupUrl1 ? `<button class="backup-download-btn" data-url="${backupUrl1}">备用链接 1</button>` : ''}
-                        ${backupUrl2 ? `<button class="backup-download-btn" data-url="${backupUrl2}">备用链接 2</button>` : ''}
-                    </div>
-                </div>
-            `;
-            document.querySelector('.video-container').appendChild(backupDiv);
-            
-            // 设置备用下载按钮
-            backupDiv.querySelectorAll('.backup-download-btn').forEach(button => {
-                button.onclick = () => {
-                    const url = button.getAttribute('data-url');
-                    downloadVideoEnhanced(url, filename);
-                };
-            });
-        }
     }
 }
 
@@ -557,6 +586,9 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.fontSize = '16px'; // 防止iOS缩放
         });
     });
+    
+    // 初始化平台检测
+    initPlatformDetection();
 });
 
 // 初始更新按钮状态
