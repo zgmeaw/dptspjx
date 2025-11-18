@@ -10,34 +10,6 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <!-- 移动端下载提示 -->
-    <div id="mobileDownloadTip" class="mobile-download-tip hidden">
-        <div class="tip-content">
-            <h3><i class="fas fa-mobile-alt"></i> 移动端下载提示</h3>
-            <p>如果视频在新页面全屏播放：</p>
-            <ol>
-                <li>长按视频选择"下载"或"保存视频"</li>
-                <li>或点击右上角菜单选择"下载"</li>
-                <li>或使用浏览器分享功能保存</li>
-            </ol>
-            <div class="tip-actions">
-                <button id="closeTip" class="tip-btn">知道了</button>
-                <button id="neverShowTip" class="tip-btn secondary">不再显示</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 浏览器兼容性提示 -->
-    <div id="browserWarning" class="browser-warning hidden">
-        <div class="warning-content">
-            <i class="fas fa-exclamation-triangle"></i>
-            <span>检测到当前浏览器可能存在兼容性问题，建议使用Chrome、Safari或手机自带浏览器获得最佳体验</span>
-            <button id="closeWarning" class="close-warning">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-
     <div class="container">
         <header>
             <h1><i class="fas fa-film"></i> AW 多平台视频解析器</h1>
@@ -84,28 +56,6 @@
                     <button class="download-btn" id="downloadBtn">
                         <i class="fas fa-download"></i> 下载视频
                     </button>
-                    <button class="mobile-help-btn" id="mobileHelpBtn">
-                        <i class="fas fa-question-circle"></i> 下载帮助
-                    </button>
-                </div>
-                
-                <!-- 移动端下载指南 -->
-                <div id="mobileGuide" class="mobile-guide hidden">
-                    <h4><i class="fas fa-mobile-alt"></i> 移动端下载指南</h4>
-                    <div class="guide-steps">
-                        <div class="step">
-                            <div class="step-number">1</div>
-                            <p>点击下载按钮后，视频会在新页面打开</p>
-                        </div>
-                        <div class="step">
-                            <div class="step-number">2</div>
-                            <p>长按视频画面，选择"下载视频"或"保存视频"</p>
-                        </div>
-                        <div class="step">
-                            <div class="step-number">3</div>
-                            <p>或在浏览器菜单中选择下载选项</p>
-                        </div>
-                    </div>
                 </div>
                 
                 <div class="stats">
