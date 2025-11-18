@@ -34,7 +34,7 @@ function initPlatformDetection() {
     
     if (isMobile) {
         showMobileDownloadTip();
-        // 移动端默认显示下载指南 - 修复：确保正确显示
+        // 移动端默认显示下载指南
         setTimeout(() => {
             const mobileGuide = document.getElementById('mobileGuide');
             if (mobileGuide) {
@@ -59,7 +59,7 @@ function initPlatformDetection() {
         document.getElementById('browserWarning').classList.add('hidden');
     });
     
-    // 修复移动端帮助按钮 - 确保事件绑定正确
+    // 修复移动端帮助按钮
     initMobileHelpButton();
 }
 
@@ -380,20 +380,21 @@ function displayResult(data, apiSource) {
     videoPlayer.currentTime = 0;
     videoPlayer.src = '';
     
-    // 设置视频播放器源，添加跨域属性
+    // 设置视频播放器属性以绕过防盗链
     videoPlayer.setAttribute('crossorigin', 'anonymous');
     videoPlayer.setAttribute('preload', 'none');
+    videoPlayer.setAttribute('referrerpolicy', 'no-referrer');
     
     // 使用API返回的视频URL
     const videoUrl = data.video_url;
     console.log('设置视频URL:', videoUrl);
     
     // 使用修复后的视频加载方法
-    loadVideoForMobile(videoUrl, videoPlayer, videoLoading, videoStatus);
+    loadVideoWithFallback(videoUrl, videoPlayer, videoLoading, videoStatus);
     
     // 设置下载按钮 - 使用增强的下载功能
     document.getElementById('downloadBtn').onclick = () => {
-        createDownloadPage(videoUrl, data.desc || 'video');
+        createEnhancedDownloadPage(videoUrl, data.desc || 'video');
     };
     
     // 显示作者信息
@@ -414,25 +415,67 @@ function displayResult(data, apiSource) {
     showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
 }
 
-// 专为移动端优化的视频加载函数
-function loadVideoForMobile(videoUrl, videoElement, loadingElement, statusElement) {
-    // 创建一个Image对象进行预探测
-    const img = new Image();
-    img.onload = function() {
-        console.log('资源预检通过，开始加载视频');
-        setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement);
-    };
-    img.onerror = function() {
-        console.log('资源预检未通过，但仍尝试加载视频');
-        setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement);
-    };
-    img.src = videoUrl;
+// 增强的视频加载函数，包含多种绕过防盗链的方法
+function loadVideoWithFallback(videoUrl, videoElement, loadingElement, statusElement) {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    function attemptLoad(url, attempt = 1) {
+        console.log(`视频加载尝试 ${attempt}: ${url}`);
+        
+        // 创建新的视频元素进行测试
+        const testVideo = document.createElement('video');
+        testVideo.crossOrigin = 'anonymous';
+        testVideo.preload = 'none';
+        testVideo.referrerPolicy = 'no-referrer';
+        
+        testVideo.onloadeddata = () => {
+            console.log('测试视频加载成功，使用原链接');
+            setVideoSource(videoElement, url, loadingElement, statusElement);
+        };
+        
+        testVideo.onerror = () => {
+            console.log(`测试视频加载失败，尝试备用方法 ${attempt}`);
+            
+            if (attempt <= maxRetries) {
+                // 尝试不同的绕过方法
+                const fallbackUrl = getFallbackUrl(url, attempt);
+                setTimeout(() => attemptLoad(fallbackUrl, attempt + 1), 500);
+            } else {
+                // 所有方法都失败
+                loadingElement.classList.add('hidden');
+                statusElement.textContent = '加载失败';
+                showFallbackOptions([url], document.getElementById('desc').textContent || 'video');
+                showError('视频加载失败，但您仍然可以尝试下载。');
+            }
+        };
+        
+        testVideo.src = url;
+        testVideo.load();
+    }
+    
+    attemptLoad(videoUrl);
 }
 
-// 设置视频源并重试
-function setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement, retryCount = 0) {
-    const maxRetries = 2;
-    
+// 获取备用URL以绕过防盗链
+function getFallbackUrl(originalUrl, attempt) {
+    switch(attempt) {
+        case 1:
+            // 添加时间戳参数
+            return originalUrl + (originalUrl.includes('?') ? '&' : '?') + `_t=${Date.now()}`;
+        case 2:
+            // 使用CORS代理（免费公共代理）
+            return `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`;
+        case 3:
+            // 使用另一个CORS代理
+            return `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`;
+        default:
+            return originalUrl;
+    }
+}
+
+// 设置视频源
+function setVideoSource(videoElement, url, loadingElement, statusElement) {
     videoElement.onloadeddata = () => {
         loadingElement.classList.add('hidden');
         statusElement.textContent = '已加载';
@@ -440,31 +483,19 @@ function setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusE
     };
 
     videoElement.onerror = (e) => {
-        console.error(`视频加载错误 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, e);
-        
-        if (retryCount < maxRetries) {
-            statusElement.textContent = `加载失败，正在重试... (${retryCount + 1}/${maxRetries + 1})`;
-            setTimeout(() => {
-                const retryUrl = videoUrl + (videoUrl.includes('?') ? '&' : '?') + `retry_ts=${Date.now()}`;
-                videoElement.src = retryUrl;
-                videoElement.load();
-                setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement, retryCount + 1);
-            }, 1000 * (retryCount + 1));
-        } else {
-            loadingElement.classList.add('hidden');
-            statusElement.textContent = '加载失败';
-            showFallbackOptions([videoUrl], document.getElementById('desc').textContent || 'video');
-            showError('视频加载失败，但您仍然可以尝试下载。');
-        }
+        console.error('视频加载错误:', e);
+        loadingElement.classList.add('hidden');
+        statusElement.textContent = '加载失败';
+        showError('视频加载失败，但您仍然可以尝试下载。');
     };
 
-    statusElement.textContent = `正在加载... (尝试 ${retryCount + 1}/${maxRetries + 1})`;
-    videoElement.src = videoUrl;
+    statusElement.textContent = '正在加载...';
+    videoElement.src = url;
     videoElement.load();
 }
 
-// 创建下载页面 - 修复版本
-function createDownloadPage(videoUrl, filename = 'video') {
+// 增强的下载页面创建函数
+function createEnhancedDownloadPage(videoUrl, filename = 'video') {
     // 清理文件名
     const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
     
@@ -474,14 +505,14 @@ function createDownloadPage(videoUrl, filename = 'video') {
         finalUrl = videoUrl.replace('http:', 'https:');
     }
     
-    // 创建下载页面内容
+    // 创建增强的下载页面内容
     const downloadHTML = `
         <!DOCTYPE html>
         <html lang="zh-CN">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>视频下载</title>
+            <title>视频下载 - AW解析器</title>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
                 * {
@@ -526,6 +557,9 @@ function createDownloadPage(videoUrl, filename = 'video') {
                     width: 100%;
                     border-radius: 8px;
                 }
+                .download-section {
+                    margin: 20px 0;
+                }
                 .download-btn {
                     background: linear-gradient(to right, #00b894, #00a085);
                     color: white;
@@ -541,6 +575,7 @@ function createDownloadPage(videoUrl, filename = 'video') {
                     justify-content: center;
                     gap: 8px;
                     width: 100%;
+                    text-decoration: none;
                 }
                 .manual-download {
                     margin-top: 15px;
@@ -558,54 +593,79 @@ function createDownloadPage(videoUrl, filename = 'video') {
                     padding: 10px;
                     background: white;
                     border-radius: 5px;
+                    word-break: break-all;
                 }
                 .tips {
                     margin-top: 15px;
                     font-size: 12px;
                     color: #666;
                 }
+                .mobile-tips {
+                    background: #e3f2fd;
+                    padding: 10px;
+                    border-radius: 8px;
+                    margin: 10px 0;
+                    font-size: 13px;
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1><i class="fas fa-download"></i> 视频下载</h1>
-                <p>点击下方按钮下载视频到您的设备</p>
+                <p>点击下方按钮或链接下载视频到您的设备</p>
                 
                 <div class="video-preview">
-                    <video controls>
+                    <video controls crossorigin="anonymous" referrerpolicy="no-referrer">
                         <source src="${finalUrl}" type="video/mp4">
                         您的浏览器不支持视频播放
                     </video>
                 </div>
                 
-                <button class="download-btn" onclick="downloadVideo()">
-                    <i class="fas fa-download"></i> 立即下载视频
-                </button>
+                <div class="download-section">
+                    <a href="${finalUrl}" class="download-btn" download="${cleanFilename}.mp4" referrerpolicy="no-referrer">
+                        <i class="fas fa-download"></i> 立即下载视频
+                    </a>
+                    
+                    <div class="mobile-tips">
+                        <strong>移动端提示：</strong>如果下载按钮无效，请长按视频选择"下载视频"
+                    </div>
+                </div>
                 
                 <div class="manual-download">
-                    <p>如果下载按钮无效，请尝试：</p>
-                    <a href="${finalUrl}" download="${cleanFilename}.mp4">点击这里直接下载</a>
-                    <p class="tips">或者长按视频选择"下载视频"</p>
+                    <p><strong>备用下载方法：</strong></p>
+                    <a href="${finalUrl}" download="${cleanFilename}.mp4" referrerpolicy="no-referrer">
+                        点击这里直接下载
+                    </a>
+                    <p class="tips">如果以上方法都无效，请复制视频链接到下载工具：</p>
+                    <input type="text" value="${finalUrl}" readonly style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
             </div>
 
             <script>
-                function downloadVideo() {
+                // 自动尝试下载
+                setTimeout(() => {
                     try {
                         const link = document.createElement('a');
                         link.href = '${finalUrl}';
                         link.download = '${cleanFilename}.mp4';
                         link.style.display = 'none';
+                        link.setAttribute('referrerpolicy', 'no-referrer');
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     } catch (error) {
-                        alert('自动下载失败，请使用手动下载方法。');
+                        console.log('自动下载失败，使用手动下载');
                     }
-                }
+                }, 1000);
                 
-                // 尝试自动下载
-                setTimeout(downloadVideo, 500);
+                // 复制链接功能
+                document.addEventListener('click', function(e) {
+                    if (e.target.type === 'text') {
+                        e.target.select();
+                        document.execCommand('copy');
+                        alert('链接已复制到剪贴板');
+                    }
+                });
             </script>
         </body>
         </html>
@@ -623,7 +683,8 @@ function createDownloadPage(videoUrl, filename = 'video') {
         const manualDownload = document.createElement('div');
         manualDownload.className = 'manual-download';
         manualDownload.innerHTML = `
-            <p>请 <a href="${finalUrl}" target="_blank" download="${cleanFilename}.mp4">点击这里下载视频</a></p>
+            <p>请 <a href="${finalUrl}" target="_blank" download="${cleanFilename}.mp4" referrerpolicy="no-referrer">点击这里下载视频</a></p>
+            <p>或复制链接: <input type="text" value="${finalUrl}" readonly style="width: 100%; padding: 5px; margin: 5px 0;"></p>
         `;
         document.querySelector('.video-actions').appendChild(manualDownload);
     }
@@ -666,7 +727,7 @@ function showFallbackOptions(videoUrls, desc) {
             button.onclick = () => {
                 const url = button.getAttribute('data-url');
                 const desc = button.getAttribute('data-desc');
-                createDownloadPage(url, desc);
+                createEnhancedDownloadPage(url, desc);
             };
         });
         
