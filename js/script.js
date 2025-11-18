@@ -239,9 +239,11 @@ function displayResult(data, apiSource) {
     // 重置视频播放器
     videoPlayer.pause();
     videoPlayer.currentTime = 0;
+    videoPlayer.src = '';
     
     // 设置视频播放器源，添加跨域属性
     videoPlayer.setAttribute('crossorigin', 'anonymous');
+    videoPlayer.setAttribute('preload', 'auto');
     
     // 使用增强的视频加载方法
     loadVideoWithRetry(data.video_url, videoPlayer, videoLoading, videoStatus, 3);
@@ -269,7 +271,7 @@ function displayResult(data, apiSource) {
     showSuccess(`视频解析成功！使用的API: ${apiSource}，点击播放按钮即可观看。`);
 }
 
-// 增强的视频加载方法，支持重试
+// 增强的视频加载方法，支持重试和HTTPS修复
 function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElement, maxRetries = 3) {
     let retryCount = 0;
     
@@ -277,10 +279,18 @@ function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElemen
         // 清除之前的事件监听器
         videoElement.onloadeddata = null;
         videoElement.onerror = null;
+        videoElement.oncanplay = null;
+        
+        // 修复视频URL - 确保使用HTTPS
+        let finalUrl = videoUrl;
+        if (window.location.protocol === 'https:' && videoUrl.startsWith('http:')) {
+            finalUrl = videoUrl.replace('http:', 'https:');
+            console.log('修复视频URL为HTTPS:', finalUrl);
+        }
         
         // 添加时间戳避免缓存
         const timestamp = new Date().getTime();
-        const urlWithTimestamp = videoUrl + (videoUrl.includes('?') ? '&' : '?') + '_t=' + timestamp;
+        const urlWithTimestamp = finalUrl + (finalUrl.includes('?') ? '&' : '?') + '_t=' + timestamp;
         
         statusElement.textContent = `加载视频中... (${retryCount + 1}/${maxRetries + 1})`;
         videoElement.src = urlWithTimestamp;
@@ -305,6 +315,13 @@ function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElemen
         
         videoElement.onerror = (e) => {
             clearTimeout(timeout);
+            console.error('视频加载错误详情:', {
+                error: e,
+                videoSrc: videoElement.src,
+                readyState: videoElement.readyState,
+                networkState: videoElement.networkState,
+                errorCode: videoElement.error ? videoElement.error.code : '无错误代码'
+            });
             handleLoadError('视频加载错误');
         };
         
@@ -321,54 +338,85 @@ function loadVideoWithRetry(videoUrl, videoElement, loadingElement, statusElemen
         } else {
             loadingElement.classList.add('hidden');
             statusElement.textContent = '加载失败';
-            showError('视频加载失败，请尝试下载视频或使用其他解析接口。');
+            
+            // 如果视频加载失败，但解析成功，提供下载选项
+            const videoContainer = document.querySelector('.video-container');
+            const existingFallback = document.querySelector('.video-fallback');
+            if (!existingFallback) {
+                const fallbackDiv = document.createElement('div');
+                fallbackDiv.className = 'video-fallback';
+                fallbackDiv.innerHTML = `
+                    <div class="fallback-message">
+                        <p><i class="fas fa-exclamation-triangle"></i> 视频加载失败，但您仍然可以下载</p>
+                        <button class="fallback-download-btn">
+                            <i class="fas fa-download"></i> 下载视频
+                        </button>
+                    </div>
+                `;
+                videoContainer.appendChild(fallbackDiv);
+                
+                // 设置备用下载按钮
+                fallbackDiv.querySelector('.fallback-download-btn').onclick = () => {
+                    downloadVideo(videoUrl, document.getElementById('desc').textContent || 'video');
+                };
+            }
+            
+            showError('视频加载失败，但您仍然可以下载视频。');
         }
     }
     
     attemptLoad();
 }
 
-// 下载视频 - 修复版本，确保触发下载而不是播放
+// 下载视频 - 修复版本，确保在新标签页打开下载
 function downloadVideo(videoUrl, filename = 'video') {
     try {
         // 清理文件名，移除非法字符
         const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
         
-        // 方法1: 创建隐藏的a标签并触发点击下载
-        const a = document.createElement('a');
-        a.href = videoUrl;
-        a.download = `${cleanFilename}_${Date.now()}.mp4`;
+        // 修复视频URL - 确保使用HTTPS
+        let finalUrl = videoUrl;
+        if (window.location.protocol === 'https:' && videoUrl.startsWith('http:')) {
+            finalUrl = videoUrl.replace('http:', 'https:');
+        }
         
-        // 设置属性确保触发下载
-        a.style.display = 'none';
-        a.target = '_self'; // 使用_self而不是_blank
+        // 创建隐藏的iframe来触发下载
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = finalUrl;
+        document.body.appendChild(iframe);
         
-        document.body.appendChild(a);
+        // 同时在新标签页打开
+        const newTab = window.open(finalUrl, '_blank');
         
-        // 触发点击事件
-        const clickEvent = new MouseEvent('click', {
-            view: window,
-            bubbles: true,
-            cancelable: false
-        });
-        a.dispatchEvent(clickEvent);
+        // 如果新标签页被阻止，提示用户
+        if (!newTab || newTab.closed || typeof newTab.closed == 'undefined') {
+            showError('弹窗被阻止，请允许弹窗或右键链接另存为。');
+            
+            // 提供手动下载链接
+            const manualDownload = document.createElement('div');
+            manualDownload.className = 'manual-download';
+            manualDownload.innerHTML = `
+                <p>如果下载没有自动开始，请 <a href="${finalUrl}" target="_blank" download="${cleanFilename}.mp4">点击这里手动下载</a></p>
+            `;
+            document.querySelector('.video-actions').appendChild(manualDownload);
+        } else {
+            showSuccess('下载已开始，请查看新打开的标签页。');
+        }
         
-        document.body.removeChild(a);
-        
-        showSuccess('开始下载视频，请查看浏览器下载列表。');
+        // 清理iframe
+        setTimeout(() => {
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+            }
+        }, 5000);
         
     } catch (error) {
         console.error('下载失败:', error);
         
-        // 方法2: 如果方法1失败，使用window.location（可能会在新标签页打开）
-        try {
-            window.location.href = videoUrl;
-            showError('自动下载失败，视频链接已打开，请右键另存为。');
-        } catch (e) {
-            // 方法3: 最后的手段，在新窗口打开
-            window.open(videoUrl, '_blank');
-            showError('下载失败，视频已在新窗口打开，请右键另存为。');
-        }
+        // 备用方法：直接打开链接
+        window.open(videoUrl, '_blank');
+        showError('自动下载失败，视频已在新窗口打开，请右键另存为。');
     }
 }
 
@@ -418,6 +466,29 @@ function showSuccess(message) {
         }
     }, 3000);
 }
+
+// 移动端优化：添加触摸事件支持
+document.addEventListener('DOMContentLoaded', function() {
+    // 为所有按钮添加触摸反馈
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(button => {
+        button.addEventListener('touchstart', function() {
+            this.style.transform = 'scale(0.98)';
+        });
+        
+        button.addEventListener('touchend', function() {
+            this.style.transform = '';
+        });
+    });
+    
+    // 输入框优化
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.style.fontSize = '16px'; // 防止iOS缩放
+        });
+    });
+});
 
 // 初始更新按钮状态
 updatePasteButton();

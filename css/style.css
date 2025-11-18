@@ -3,6 +3,7 @@
     padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    -webkit-tap-highlight-color: transparent; /* 移除移动端点击高亮 */
 }
 
 :root {
@@ -21,8 +22,9 @@ body {
     color: #333;
     line-height: 1.6;
     min-height: 100vh;
-    padding: 20px;
+    padding: 15px;
     position: relative;
+    -webkit-text-size-adjust: 100%; /* 防止iOS文字缩放 */
 }
 
 .container {
@@ -32,32 +34,34 @@ body {
 
 header {
     text-align: center;
-    margin-bottom: 40px;
-    padding: 20px 0;
+    margin-bottom: 30px;
+    padding: 15px 0;
     position: relative;
 }
 
 h1 {
-    font-size: 2.5rem;
+    font-size: 2rem;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    word-wrap: break-word;
 }
 
 .subtitle {
     color: var(--gray);
-    font-size: 1.1rem;
+    font-size: 0.95rem;
 }
 
 .card {
     background: white;
     border-radius: 12px;
     box-shadow: var(--card-shadow);
-    padding: 25px;
-    margin-bottom: 25px;
+    padding: 20px;
+    margin-bottom: 20px;
     transition: transform 0.3s ease;
+    overflow: hidden; /* 防止内容溢出 */
 }
 
 .card:hover {
@@ -66,12 +70,13 @@ h1 {
 
 .card h2 {
     color: var(--dark);
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     padding-bottom: 10px;
     border-bottom: 2px solid var(--border);
     display: flex;
     align-items: center;
     gap: 10px;
+    font-size: 1.2rem;
 }
 
 .card h2 i {
@@ -82,6 +87,7 @@ h1 {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 input[type="text"] {
@@ -89,8 +95,9 @@ input[type="text"] {
     padding: 15px;
     border: 2px solid var(--border);
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 16px; /* 防止iOS缩放 */
     transition: border-color 0.3s;
+    min-width: 0; /* 修复flex布局问题 */
 }
 
 input[type="text"]:focus {
@@ -103,7 +110,7 @@ button {
     color: white;
     border: none;
     border-radius: 8px;
-    padding: 15px 25px;
+    padding: 15px 20px;
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
@@ -111,6 +118,8 @@ button {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 50px; /* 移动端友好的触摸目标 */
+    touch-action: manipulation; /* 改善触摸响应 */
 }
 
 button:hover {
@@ -124,7 +133,7 @@ button:active {
 
 .help-text {
     color: var(--gray);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     margin-top: 5px;
 }
 
@@ -160,6 +169,7 @@ button:active {
     border-radius: 8px;
     margin-top: 15px;
     border-left: 4px solid #d63031;
+    word-break: break-word;
 }
 
 .success-message {
@@ -169,6 +179,7 @@ button:active {
     border-radius: 8px;
     margin-top: 15px;
     border-left: 4px solid #00b894;
+    word-break: break-word;
 }
 
 .video-container {
@@ -193,6 +204,7 @@ button:active {
     display: block;
     border-radius: 12px;
     background-color: #000;
+    max-height: 70vh; /* 移动端高度限制 */
 }
 
 .video-placeholder {
@@ -224,8 +236,11 @@ button:active {
 }
 
 .video-actions button {
-    padding: 10px 15px;
+    padding: 12px 18px;
     font-size: 14px;
+    flex: 1;
+    min-width: 140px; /* 移动端最小宽度 */
+    justify-content: center;
 }
 
 .download-btn {
@@ -251,14 +266,17 @@ button:active {
     object-fit: cover;
     border: 3px solid var(--primary);
     background-color: #f0f0f0;
+    flex-shrink: 0; /* 防止头像被压缩 */
 }
 
 .author-details {
     flex: 1;
+    min-width: 0; /* 修复flex文本溢出 */
 }
 
 .author-details p {
     margin-bottom: 8px;
+    word-break: break-word; /* 长文本换行 */
 }
 
 footer {
@@ -266,7 +284,7 @@ footer {
     margin-top: 20px;
     padding: 20px;
     color: var(--gray);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .stats {
@@ -275,14 +293,18 @@ footer {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .stat-item {
     text-align: center;
+    flex: 1;
+    min-width: 100px;
 }
 
 .stat-value {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: bold;
     color: var(--primary);
 }
@@ -326,11 +348,12 @@ footer {
     margin-top: 10px;
     font-size: 0.8rem;
     color: var(--gray);
+    text-align: center;
 }
 
 .profile-section {
     text-align: center;
-    margin: 30px 0;
+    margin: 25px 0;
 }
 
 .profile-link {
@@ -345,6 +368,7 @@ footer {
     font-weight: 600;
     transition: all 0.3s;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-height: 44px; /* 移动端友好的触摸目标 */
 }
 
 .profile-link:hover {
@@ -352,21 +376,81 @@ footer {
     box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
 }
 
+/* 新增样式：视频加载失败备用选项 */
+.video-fallback {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.fallback-message {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 15px;
+    color: #856404;
+}
+
+.fallback-download-btn {
+    background: linear-gradient(to right, #e17055, #d63031);
+    margin-top: 10px;
+}
+
+.manual-download {
+    margin-top: 10px;
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.manual-download a {
+    color: var(--primary);
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.manual-download a:hover {
+    text-decoration: underline;
+}
+
+/* 移动端特定优化 */
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
     .input-group {
         flex-direction: column;
     }
     
     h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
+    }
+    
+    .card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .card h2 {
+        font-size: 1.1rem;
     }
     
     .video-player {
         max-width: 100%;
     }
     
+    .video-player video {
+        max-height: 60vh;
+    }
+    
     .author-header {
         flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+    
+    .author-details {
         text-align: center;
     }
     
@@ -377,5 +461,61 @@ footer {
     
     .video-actions {
         flex-direction: column;
+    }
+    
+    .video-actions button {
+        width: 100%;
+    }
+    
+    button {
+        padding: 14px 16px; /* 更大的触摸目标 */
+        justify-content: center;
+    }
+    
+    input[type="text"] {
+        padding: 14px;
+    }
+    
+    .profile-link {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    .subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .card h2 {
+        font-size: 1rem;
+    }
+    
+    button {
+        font-size: 14px;
+    }
+    
+    .avatar {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .video-player video {
+        max-height: 50vh;
+    }
+}
+
+/* 防止横屏时字体过大 */
+@media (max-width: 768px) and (orientation: landscape) {
+    .video-player video {
+        max-height: 80vh;
+    }
+    
+    .container {
+        max-width: 100%;
     }
 }
