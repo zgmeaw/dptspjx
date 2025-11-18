@@ -34,8 +34,13 @@ function initPlatformDetection() {
     
     if (isMobile) {
         showMobileDownloadTip();
-        // 移动端默认显示下载指南
-        document.getElementById('mobileGuide').classList.remove('hidden');
+        // 移动端默认显示下载指南 - 修复：确保正确显示
+        setTimeout(() => {
+            const mobileGuide = document.getElementById('mobileGuide');
+            if (mobileGuide) {
+                mobileGuide.classList.remove('hidden');
+            }
+        }, 500);
     }
     
     showBrowserWarning();
@@ -63,19 +68,18 @@ function initMobileHelpButton() {
     const mobileHelpBtn = document.getElementById('mobileHelpBtn');
     
     // 移除之前的事件监听器，避免重复绑定
-    mobileHelpBtn.replaceWith(mobileHelpBtn.cloneNode(true));
+    const newHelpBtn = mobileHelpBtn.cloneNode(true);
+    mobileHelpBtn.parentNode.replaceChild(newHelpBtn, mobileHelpBtn);
     
-    // 重新获取元素
-    const newHelpBtn = document.getElementById('mobileHelpBtn');
-    
-    // 同时绑定click和touch事件
-    newHelpBtn.addEventListener('click', function(e) {
+    // 重新绑定事件
+    document.getElementById('mobileHelpBtn').addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         toggleMobileGuide();
     });
     
-    newHelpBtn.addEventListener('touchend', function(e) {
+    // 添加触摸事件支持
+    document.getElementById('mobileHelpBtn').addEventListener('touchend', function(e) {
         e.preventDefault();
         e.stopPropagation();
         toggleMobileGuide();
@@ -85,7 +89,9 @@ function initMobileHelpButton() {
 // 切换移动端指南显示状态
 function toggleMobileGuide() {
     const guide = document.getElementById('mobileGuide');
-    guide.classList.toggle('hidden');
+    if (guide) {
+        guide.classList.toggle('hidden');
+    }
 }
 
 // 更新按钮状态
@@ -387,7 +393,7 @@ function displayResult(data, apiSource) {
     
     // 设置下载按钮 - 使用增强的下载功能
     document.getElementById('downloadBtn').onclick = () => {
-        enhancedDownloadVideo(videoUrl, data.desc || 'video');
+        createDownloadPage(videoUrl, data.desc || 'video');
     };
     
     // 显示作者信息
@@ -457,10 +463,8 @@ function setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusE
     videoElement.load();
 }
 
-// 增强的下载功能 - 解决移动端下载问题
-function enhancedDownloadVideo(videoUrl, filename = 'video') {
-    const { isMobile } = detectPlatform();
-    
+// 创建下载页面 - 修复版本
+function createDownloadPage(videoUrl, filename = 'video') {
     // 清理文件名
     const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
     
@@ -470,35 +474,23 @@ function enhancedDownloadVideo(videoUrl, filename = 'video') {
         finalUrl = videoUrl.replace('http:', 'https:');
     }
     
-    if (isMobile) {
-        // 移动端：创建下载页面
-        createDownloadPage(finalUrl, cleanFilename);
-    } else {
-        // 桌面端：直接下载
-        directDownload(finalUrl, cleanFilename);
-    }
-}
-
-// 创建下载页面
-function createDownloadPage(videoUrl, filename) {
-    // 创建下载页面窗口
-    const downloadWindow = window.open('', '_blank');
-    
-    if (!downloadWindow || downloadWindow.closed) {
-        showError('弹窗被阻止，请允许弹窗或使用手动下载。');
-        return;
-    }
-    
-    downloadWindow.document.write(`
+    // 创建下载页面内容
+    const downloadHTML = `
         <!DOCTYPE html>
         <html lang="zh-CN">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>视频下载</title>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
-                body {
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
                     font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+                }
+                body {
                     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
                     margin: 0;
                     padding: 20px;
@@ -511,7 +503,7 @@ function createDownloadPage(videoUrl, filename) {
                 .container {
                     background: white;
                     border-radius: 12px;
-                    padding: 30px;
+                    padding: 25px;
                     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
                     text-align: center;
                     max-width: 400px;
@@ -519,14 +511,16 @@ function createDownloadPage(videoUrl, filename) {
                 }
                 h1 {
                     color: #ff0050;
-                    margin-bottom: 20px;
+                    margin-bottom: 15px;
+                    font-size: 1.5rem;
                 }
                 .video-preview {
                     width: 100%;
                     max-width: 300px;
-                    margin: 20px auto;
+                    margin: 15px auto;
                     border-radius: 8px;
                     overflow: hidden;
+                    background: #000;
                 }
                 .video-preview video {
                     width: 100%;
@@ -537,19 +531,19 @@ function createDownloadPage(videoUrl, filename) {
                     color: white;
                     border: none;
                     border-radius: 8px;
-                    padding: 15px 30px;
+                    padding: 15px 25px;
                     font-size: 16px;
                     font-weight: 600;
                     cursor: pointer;
-                    margin: 10px;
+                    margin: 10px 0;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     gap: 8px;
-                    width: 200px;
+                    width: 100%;
                 }
                 .manual-download {
-                    margin-top: 20px;
+                    margin-top: 15px;
                     padding: 15px;
                     background: #f8f9fa;
                     border-radius: 8px;
@@ -559,28 +553,39 @@ function createDownloadPage(videoUrl, filename) {
                     color: #ff0050;
                     font-weight: bold;
                     text-decoration: none;
+                    display: block;
+                    margin: 5px 0;
+                    padding: 10px;
+                    background: white;
+                    border-radius: 5px;
+                }
+                .tips {
+                    margin-top: 15px;
+                    font-size: 12px;
+                    color: #666;
                 }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1><i class="fas fa-download"></i> 视频下载</h1>
-                <p>点击下方按钮下载视频</p>
+                <p>点击下方按钮下载视频到您的设备</p>
                 
                 <div class="video-preview">
                     <video controls>
-                        <source src="${videoUrl}" type="video/mp4">
+                        <source src="${finalUrl}" type="video/mp4">
                         您的浏览器不支持视频播放
                     </video>
                 </div>
                 
                 <button class="download-btn" onclick="downloadVideo()">
-                    <i class="fas fa-download"></i> 下载视频
+                    <i class="fas fa-download"></i> 立即下载视频
                 </button>
                 
                 <div class="manual-download">
-                    <p>如果下载按钮无效，请 <a href="${videoUrl}" download="${filename}.mp4">点击这里手动下载</a></p>
-                    <p><small>或者长按视频选择"下载视频"</small></p>
+                    <p>如果下载按钮无效，请尝试：</p>
+                    <a href="${finalUrl}" download="${cleanFilename}.mp4">点击这里直接下载</a>
+                    <p class="tips">或者长按视频选择"下载视频"</p>
                 </div>
             </div>
 
@@ -588,49 +593,39 @@ function createDownloadPage(videoUrl, filename) {
                 function downloadVideo() {
                     try {
                         const link = document.createElement('a');
-                        link.href = '${videoUrl}';
-                        link.download = '${filename}.mp4';
+                        link.href = '${finalUrl}';
+                        link.download = '${cleanFilename}.mp4';
                         link.style.display = 'none';
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                     } catch (error) {
-                        alert('下载失败: ' + error.message);
+                        alert('自动下载失败，请使用手动下载方法。');
                     }
                 }
                 
                 // 尝试自动下载
-                setTimeout(downloadVideo, 1000);
+                setTimeout(downloadVideo, 500);
             </script>
         </body>
         </html>
-    `);
+    `;
     
-    downloadWindow.document.close();
-    showSuccess('下载页面已打开，请点击下载按钮保存视频。');
-}
-
-// 直接下载功能
-function directDownload(videoUrl, filename) {
-    try {
-        const link = document.createElement('a');
-        link.href = videoUrl;
-        link.download = `${filename}_${Date.now()}.mp4`;
-        link.target = '_blank';
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        
-        setTimeout(() => {
-            document.body.removeChild(link);
-        }, 100);
-        
-        showSuccess('下载已开始，请查看浏览器下载列表。');
-    } catch (error) {
-        console.error('下载失败:', error);
-        // 备用方法
-        createDownloadPage(videoUrl, filename);
+    // 打开新窗口并写入内容
+    const downloadWindow = window.open('', '_blank');
+    if (downloadWindow) {
+        downloadWindow.document.write(downloadHTML);
+        downloadWindow.document.close();
+        showSuccess('下载页面已打开，请点击下载按钮保存视频。');
+    } else {
+        // 如果弹窗被阻止，在当前页面显示下载链接
+        showError('弹窗被阻止，请允许弹窗或使用手动下载。');
+        const manualDownload = document.createElement('div');
+        manualDownload.className = 'manual-download';
+        manualDownload.innerHTML = `
+            <p>请 <a href="${finalUrl}" target="_blank" download="${cleanFilename}.mp4">点击这里下载视频</a></p>
+        `;
+        document.querySelector('.video-actions').appendChild(manualDownload);
     }
 }
 
@@ -671,7 +666,7 @@ function showFallbackOptions(videoUrls, desc) {
             button.onclick = () => {
                 const url = button.getAttribute('data-url');
                 const desc = button.getAttribute('data-desc');
-                enhancedDownloadVideo(url, desc);
+                createDownloadPage(url, desc);
             };
         });
         
