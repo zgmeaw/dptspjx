@@ -519,3 +519,92 @@ footer {
         max-width: 100%;
     }
 }
+
+/* 在原有CSS基础上添加以下样式 */
+
+/* 视频加载失败备用选项样式 */
+.video-fallback {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.fallback-message {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 20px;
+    color: #856404;
+}
+
+.fallback-tips {
+    font-size: 0.9rem;
+    margin: 10px 0;
+    color: #8d6e00;
+}
+
+.download-options {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.fallback-download-btn {
+    background: linear-gradient(to right, #00b894, #00a085);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+}
+
+.fallback-download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 184, 148, 0.3);
+}
+
+.fallback-try-again-btn {
+    background: linear-gradient(to right, #0984e3, #74b9ff);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    margin-top: 10px;
+}
+
+.fallback-try-again-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(9, 132, 227, 0.3);
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .download-options {
+        flex-direction: column;
+    }
+    
+    .fallback-download-btn, .fallback-try-again-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .fallback-message {
+        padding: 15px;
+    }
+}
