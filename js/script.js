@@ -54,11 +54,19 @@ function initPlatformDetection() {
         document.getElementById('browserWarning').classList.add('hidden');
     });
     
-    // 移动端帮助按钮
-    document.getElementById('mobileHelpBtn').addEventListener('click', () => {
-        const guide = document.getElementById('mobileGuide');
-        guide.classList.toggle('hidden');
+    // 修复移动端帮助按钮 - 同时监听点击和触摸事件
+    const mobileHelpBtn = document.getElementById('mobileHelpBtn');
+    mobileHelpBtn.addEventListener('click', toggleMobileGuide);
+    mobileHelpBtn.addEventListener('touchend', function(e) {
+        e.preventDefault(); // 防止触摸事件导致的其他行为
+        toggleMobileGuide();
     });
+}
+
+// 切换移动端指南显示状态
+function toggleMobileGuide() {
+    const guide = document.getElementById('mobileGuide');
+    guide.classList.toggle('hidden');
 }
 
 // 更新按钮状态
@@ -325,7 +333,7 @@ async function parseWithAPI4(url) {
     }
 }
 
-// 显示解析结果
+// 显示解析结果 - 修复移动端403问题
 function displayResult(data, apiSource) {
     // 隐藏加载状态
     document.getElementById('loading').style.display = 'none';
@@ -349,45 +357,14 @@ function displayResult(data, apiSource) {
     
     // 设置视频播放器源，添加跨域属性
     videoPlayer.setAttribute('crossorigin', 'anonymous');
-    videoPlayer.setAttribute('preload', 'auto');
+    videoPlayer.setAttribute('preload', 'none'); // 修复：改为none减少敏感请求
     
     // 使用API返回的视频URL
     const videoUrl = data.video_url;
     console.log('设置视频URL:', videoUrl);
     
-    // 设置视频播放器源
-    videoPlayer.src = videoUrl;
-    videoPlayer.load();
-    
-    // 监听视频加载事件
-    videoPlayer.addEventListener('loadeddata', () => {
-        videoLoading.classList.add('hidden');
-        videoStatus.textContent = '已加载';
-        console.log('视频加载成功');
-        showSuccess('视频加载成功！点击播放按钮即可观看。');
-    });
-    
-    videoPlayer.addEventListener('canplay', () => {
-        videoStatus.textContent = '可以播放';
-    });
-    
-    videoPlayer.addEventListener('error', (e) => {
-        console.error('视频加载错误:', e);
-        videoLoading.classList.add('hidden');
-        videoStatus.textContent = '加载失败';
-        
-        // 显示备用下载选项
-        const videoUrls = [videoUrl];
-        if (data.original_video_url && data.original_video_url !== videoUrl) {
-            videoUrls.push(data.original_video_url);
-        }
-        if (data.play_url && data.play_url !== videoUrl) {
-            videoUrls.push(data.play_url);
-        }
-        
-        showFallbackOptions(videoUrls, data.desc || 'video');
-        showError('视频加载失败，但您仍然可以下载视频。');
-    });
+    // 使用修复后的视频加载方法
+    loadVideoForMobile(videoUrl, videoPlayer, videoLoading, videoStatus);
     
     // 设置下载按钮 - 使用移动端优化的下载功能
     document.getElementById('downloadBtn').onclick = () => {
@@ -410,6 +387,60 @@ function displayResult(data, apiSource) {
     
     // 显示成功消息
     showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
+}
+
+// 专为移动端优化的视频加载函数 - 修复403问题
+function loadVideoForMobile(videoUrl, videoElement, loadingElement, statusElement) {
+    // 创建一个Image对象进行预探测，此方式携带的Header信息较少，有时能绕过校验
+    const img = new Image();
+    img.onload = function() {
+        // 图片能加载，说明资源可能可访问，再尝试设置视频源
+        console.log('资源预检通过，开始加载视频');
+        setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement);
+    };
+    img.onerror = function() {
+        // 即使图片探测失败，也仍然尝试加载视频，因为两者校验策略可能不同
+        console.log('资源预检未通过，但仍尝试加载视频');
+        setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement);
+    };
+    // 将视频URL分配给Image对象，这会触发一个GET请求
+    img.src = videoUrl;
+}
+
+// 设置视频源并重试
+function setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement, retryCount = 0) {
+    const maxRetries = 2;
+    
+    videoElement.onloadeddata = () => {
+        loadingElement.classList.add('hidden');
+        statusElement.textContent = '已加载';
+        showSuccess('视频加载成功！');
+    };
+
+    videoElement.onerror = (e) => {
+        console.error(`视频加载错误 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, e);
+        
+        if (retryCount < maxRetries) {
+            statusElement.textContent = `加载失败，正在重试... (${retryCount + 1}/${maxRetries + 1})`;
+            // 在重试前添加一个短暂延迟，并可以尝试在URL后添加随机参数
+            setTimeout(() => {
+                const retryUrl = videoUrl + (videoUrl.includes('?') ? '&' : '?') + `retry_ts=${Date.now()}`;
+                videoElement.src = retryUrl;
+                videoElement.load();
+                setVideoSourceWithRetry(videoUrl, videoElement, loadingElement, statusElement, retryCount + 1);
+            }, 1000 * (retryCount + 1)); // 延迟时间递增
+        } else {
+            loadingElement.classList.add('hidden');
+            statusElement.textContent = '加载失败';
+            showFallbackOptions([videoUrl], document.getElementById('desc').textContent || 'video');
+            showError('视频加载失败，但您仍然可以尝试下载。');
+        }
+    };
+
+    // 首次设置视频源
+    statusElement.textContent = `正在加载... (尝试 ${retryCount + 1}/${maxRetries + 1})`;
+    videoElement.src = videoUrl;
+    videoElement.load();
 }
 
 // 移动端优化的下载功能
