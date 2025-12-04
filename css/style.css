@@ -926,6 +926,32 @@ footer {
     transform: translateY(-1px);
 }
 
+/* 复制链接回退选项 */
+.copy-link-fallback {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.copy-url-btn {
+    background: linear-gradient(to right, #667eea, #764ba2) !important;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.copy-url-btn:hover {
+    background: linear-gradient(to right, #764ba2, #667eea) !important;
+    transform: translateY(-2px);
+}
+
 /* 备用复制框（全屏弹窗） */
 .fallback-copy-box {
     position: fixed;
