@@ -1,3 +1,10 @@
+// ===== 配置区域 =====
+// Cloudflare Worker代理地址
+const WORKER_PROXY_URL = 'https://mute-base-04b8.zgmeaw-f24.workers.dev';
+// 是否启用代理（true=使用Worker代理，false=直接访问）
+const USE_PROXY = true;
+// ==================
+
 // 粘贴/清空按钮逻辑
 const pasteButton = document.getElementById('pasteButton');
 const urlInput = document.getElementById('url');
@@ -97,9 +104,9 @@ document.getElementById('parseButton').addEventListener('click', async () => {
         
         // 尝试API4
         try {
-            const result4 = await parseWithAPI4(finalUrl);
-            if (result4.success && result4.data.video_url) {
-                displayResult(result4.data, 4);
+        const result4 = await parseWithAPI4(finalUrl);
+        if (result4.success && result4.data.video_url) {
+            displayResult(result4.data, 4);
                 success = true;
             }
         } catch (e) {
@@ -377,11 +384,18 @@ function displayResult(data, apiSource) {
     
     // 使用API返回的视频URL
     const videoUrl = data.video_url;
-    console.log('设置视频URL:', videoUrl);
+    console.log('原始视频URL:', videoUrl);
     console.log('备用URLs:', data.backup_urls);
     
+    // 如果启用代理，通过Worker访问
+    let finalVideoUrl = videoUrl;
+    if (USE_PROXY && WORKER_PROXY_URL && !WORKER_PROXY_URL.includes('你的用户名')) {
+        finalVideoUrl = `${WORKER_PROXY_URL}?url=${encodeURIComponent(videoUrl)}`;
+        console.log('使用代理URL:', finalVideoUrl);
+    }
+    
     // 设置视频播放器源
-    player.src = videoUrl;
+    player.src = finalVideoUrl;
     
     // 尝试加载视频
     let loadTimeout = null;
@@ -461,13 +475,49 @@ function displayResult(data, apiSource) {
     // 尝试加载视频
     player.load();
     
-    // 设置下载按钮 - 智能下载
+    // 设置下载按钮
     document.getElementById('downloadBtn').onclick = async () => {
         const allUrls = [videoUrl, ...(data.backup_urls || [])].filter((url, index, self) => 
             url && self.indexOf(url) === index
         );
         
-        await smartDownload(allUrls[0], data.desc || 'video', allUrls.slice(1));
+        const downloadUrl = allUrls[0];
+        
+        // 如果启用了代理，尝试直接下载
+        if (USE_PROXY && WORKER_PROXY_URL && !WORKER_PROXY_URL.includes('你的用户名')) {
+            const proxyUrl = `${WORKER_PROXY_URL}?url=${encodeURIComponent(downloadUrl)}`;
+            
+            try {
+                showSuccess('正在下载...');
+                
+                // 使用a标签下载
+                const a = document.createElement('a');
+                a.href = proxyUrl;
+                a.download = (data.desc || 'video').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) + '.mp4';
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                showSuccess('下载已开始！如未自动下载，请查看浏览器下载管理器。');
+            } catch (error) {
+                console.error('下载失败:', error);
+                showError('下载失败，已复制链接，请使用下载工具。');
+                try {
+                    await navigator.clipboard.writeText(downloadUrl);
+                } catch (e) {
+                    prompt('复制此链接:', downloadUrl);
+                }
+            }
+        } else {
+            // 未配置代理，复制链接
+            try {
+                await navigator.clipboard.writeText(downloadUrl);
+                showSuccess('✅ 链接已复制！请使用 IDM/迅雷 等下载工具粘贴下载');
+            } catch (err) {
+                prompt('复制此链接使用下载工具:', downloadUrl);
+            }
+        }
     };
     
     // 显示作者信息
@@ -486,103 +536,6 @@ function displayResult(data, apiSource) {
     
     // 显示成功消息
     showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
-}
-
-// 智能下载功能 - 自动选择最佳下载方式
-async function smartDownload(url, filename = 'video', backupUrls = []) {
-    const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
-    
-    showSuccess('正在准备下载...');
-    
-    try {
-        // 方法1: 尝试fetch下载（最理想）
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
-        
-        const response = await fetch(url, {
-            method: 'GET',
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = `${cleanFilename}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-            
-            showSuccess('下载已开始！请查看浏览器下载管理器。');
-            return;
-        }
-    } catch (error) {
-        console.log('Fetch下载失败，尝试其他方式:', error.message);
-    }
-    
-    // 方法2: 使用a标签download属性
-    try {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${cleanFilename}.mp4`;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        // 给一点时间让浏览器处理
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        showSuccess('下载已触发！如未自动开始，视频将在新窗口打开，请右键下载。');
-        return;
-    } catch (error) {
-        console.log('a标签下载失败:', error);
-    }
-    
-    // 方法3: 直接在新窗口打开（兜底方案）
-    try {
-        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-        if (newWindow) {
-            showSuccess('已在新窗口打开视频，请右键点击视频选择"视频另存为"进行下载。');
-        } else {
-            showError('弹窗被阻止，请允许弹窗或复制链接手动下载。');
-            showCopyLinkOption(url, backupUrls);
-        }
-    } catch (error) {
-        showError('下载失败，请复制链接手动下载。');
-        showCopyLinkOption(url, backupUrls);
-    }
-}
-
-// 显示复制链接选项
-function showCopyLinkOption(url, backupUrls = []) {
-    const videoActions = document.querySelector('.video-actions');
-    const existing = document.querySelector('.copy-link-fallback');
-    if (existing) existing.remove();
-    
-    const div = document.createElement('div');
-    div.className = 'copy-link-fallback';
-    div.innerHTML = `
-        <button class="copy-url-btn" data-url="${url}">
-            <i class="fas fa-copy"></i> 复制视频链接
-        </button>
-    `;
-    videoActions.appendChild(div);
-    
-    div.querySelector('.copy-url-btn').onclick = async () => {
-        try {
-            await navigator.clipboard.writeText(url);
-            showSuccess('链接已复制！在浏览器新标签页粘贴即可打开。');
-        } catch (err) {
-            prompt('复制以下链接:', url);
-        }
-    };
 }
 
 // 显示CORS错误提示
@@ -605,9 +558,9 @@ function showCorsErrorSolution(videoUrls, desc) {
                 <button class="open-new-window-btn" data-url="${primaryUrl}">
                     <i class="fas fa-external-link-alt"></i> 在新窗口打开
                 </button>
-            </div>
-        </div>
-    `;
+                    </div>
+                </div>
+            `;
     videoContainer.appendChild(fallbackDiv);
     
     fallbackDiv.querySelector('.open-new-window-btn').onclick = () => {
@@ -639,7 +592,7 @@ function showFallbackCopyMethod(url) {
     // 关闭按钮
     fallbackDiv.querySelector('.close-fallback-btn').onclick = () => {
         fallbackDiv.remove();
-    };
+                };
     
     // 点击背景关闭
     fallbackDiv.onclick = (e) => {

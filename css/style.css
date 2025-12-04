@@ -244,7 +244,29 @@ button:active {
 }
 
 .download-btn {
-    background: linear-gradient(to right, #00b894, #00a085);
+    background: linear-gradient(to right, #667eea, #764ba2);
+}
+
+.download-tips {
+    margin-top: 15px;
+    padding: 15px;
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    border-radius: 8px;
+    text-align: left;
+}
+
+.download-tips p {
+    margin: 8px 0;
+    font-size: 0.9rem;
+    color: #424242;
+    line-height: 1.6;
+}
+
+.download-tips p:first-child {
+    color: #e65100;
+    font-weight: 600;
+    margin-bottom: 12px;
 }
 
 .author-info {
