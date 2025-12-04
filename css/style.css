@@ -390,9 +390,109 @@ footer {
     color: #856404;
 }
 
+.fallback-message p {
+    margin-bottom: 10px;
+}
+
+.fallback-tips {
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+.download-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
 .fallback-download-btn {
-    background: linear-gradient(to right, #e17055, #d63031);
-    margin-top: 10px;
+    background: linear-gradient(to right, #e17055, #d63031) !important;
+    margin: 0;
+    width: 100%;
+    justify-content: center;
+}
+
+.fallback-download-btn:hover {
+    background: linear-gradient(to right, #d63031, #c0392b) !important;
+}
+
+/* 下载说明样式 */
+.download-instructions {
+    width: 100%;
+    margin-top: 15px;
+    padding: 15px;
+    background: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    border-radius: 8px;
+}
+
+.instruction-content {
+    text-align: left;
+}
+
+.instruction-content p {
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #2e7d32;
+}
+
+.instruction-content ol {
+    margin: 10px 0 10px 20px;
+    color: #424242;
+    line-height: 1.8;
+}
+
+.instruction-content li {
+    margin-bottom: 8px;
+}
+
+.manual-link {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.manual-download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: linear-gradient(to right, #4caf50, #45a049);
+    color: white !important;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.manual-download-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+    text-decoration: none;
+}
+
+.backup-download-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px dashed #ddd;
+}
+
+.backup-download-section p {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.backup-link-btn {
+    background: linear-gradient(to right, #ff9800, #f57c00) !important;
+    width: 100%;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.backup-link-btn:hover {
+    background: linear-gradient(to right, #f57c00, #e65100) !important;
 }
 
 .manual-download {
