@@ -387,12 +387,9 @@ function displayResult(data, apiSource) {
     console.log('原始视频URL:', videoUrl);
     console.log('备用URLs:', data.backup_urls);
     
-    // 如果启用代理，通过Worker访问
+    // 先直接尝试原始URL（手机端可能可以播放）
     let finalVideoUrl = videoUrl;
-    if (USE_PROXY && WORKER_PROXY_URL && !WORKER_PROXY_URL.includes('你的用户名')) {
-        finalVideoUrl = `${WORKER_PROXY_URL}?url=${encodeURIComponent(videoUrl)}`;
-        console.log('使用代理URL:', finalVideoUrl);
-    }
+    console.log('先尝试原始URL');
     
     // 设置视频播放器源
     player.src = finalVideoUrl;
@@ -407,10 +404,10 @@ function displayResult(data, apiSource) {
             console.warn('视频加载超时');
             videoLoading.classList.add('hidden');
             videoStatus.textContent = '加载超时';
-            showFallbackOptions([videoUrl, ...(data.backup_urls || [])], data.desc || 'video');
-            showError('视频加载超时，可能由于网络问题或视频链接失效。您可以尝试下载视频。');
+            showCorsErrorSolution([videoUrl, ...(data.backup_urls || [])], data.desc || 'video');
+            showError('视频加载超时，可能由于网络问题或视频链接失效。');
         }
-    }, 15000); // 15秒超时
+    }, 20000); // 20秒超时
     
     // 监听视频加载成功
     player.addEventListener('loadeddata', () => {
@@ -475,7 +472,7 @@ function displayResult(data, apiSource) {
     // 尝试加载视频
     player.load();
     
-    // 设置下载按钮
+    // 设置下载按钮 - 直接复制原始链接
     document.getElementById('downloadBtn').onclick = async () => {
         const allUrls = [videoUrl, ...(data.backup_urls || [])].filter((url, index, self) => 
             url && self.indexOf(url) === index
@@ -483,40 +480,11 @@ function displayResult(data, apiSource) {
         
         const downloadUrl = allUrls[0];
         
-        // 如果启用了代理，尝试直接下载
-        if (USE_PROXY && WORKER_PROXY_URL && !WORKER_PROXY_URL.includes('你的用户名')) {
-            const proxyUrl = `${WORKER_PROXY_URL}?url=${encodeURIComponent(downloadUrl)}`;
-            
-            try {
-                showSuccess('正在下载...');
-                
-                // 使用a标签下载
-                const a = document.createElement('a');
-                a.href = proxyUrl;
-                a.download = (data.desc || 'video').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) + '.mp4';
-                a.target = '_blank';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                showSuccess('下载已开始！如未自动下载，请查看浏览器下载管理器。');
-            } catch (error) {
-                console.error('下载失败:', error);
-                showError('下载失败，已复制链接，请使用下载工具。');
-                try {
-                    await navigator.clipboard.writeText(downloadUrl);
-                } catch (e) {
-                    prompt('复制此链接:', downloadUrl);
-                }
-            }
-        } else {
-            // 未配置代理，复制链接
-            try {
-                await navigator.clipboard.writeText(downloadUrl);
-                showSuccess('✅ 链接已复制！请使用 IDM/迅雷 等下载工具粘贴下载');
-            } catch (err) {
-                prompt('复制此链接使用下载工具:', downloadUrl);
-            }
+        try {
+            await navigator.clipboard.writeText(downloadUrl);
+            showSuccess('✅ 链接已复制！请使用 IDM / 迅雷 / ADM 等工具粘贴下载');
+        } catch (err) {
+            prompt('复制此链接使用下载工具:', downloadUrl);
         }
     };
     
@@ -549,23 +517,45 @@ function showCorsErrorSolution(videoUrls, desc) {
     
     const fallbackDiv = document.createElement('div');
     fallbackDiv.className = 'video-fallback cors-solution';
-    const primaryUrl = videoUrls[0];
+    
+    // 获取原始URL（不是代理URL）
+    let primaryUrl = videoUrls[0];
+    if (primaryUrl && primaryUrl.includes('workers.dev')) {
+        // 从代理URL中提取原始URL
+        try {
+            const url = new URL(primaryUrl);
+            const originalUrl = url.searchParams.get('url');
+            if (originalUrl) {
+                primaryUrl = originalUrl;
+            }
+        } catch (e) {
+            console.error('URL解析失败:', e);
+        }
+    }
     
     fallbackDiv.innerHTML = `
         <div class="fallback-message">
-            <p><i class="fas fa-info-circle"></i> 视频无法在页面内播放（CORS限制）</p>
+            <p><i class="fas fa-exclamation-triangle"></i> 视频加载失败</p>
+            <p class="fallback-tips">可能原因：Worker超时、防盗链限制或网络问题</p>
             <div class="solution-buttons">
-                <button class="open-new-window-btn" data-url="${primaryUrl}">
-                    <i class="fas fa-external-link-alt"></i> 在新窗口打开
+                <button class="copy-original-url-btn" data-url="${primaryUrl}">
+                    <i class="fas fa-copy"></i> 复制原始链接
                 </button>
-                    </div>
-                </div>
-            `;
+            </div>
+            <p class="fallback-tips" style="margin-top: 10px; font-size: 0.85rem;">
+                复制后使用 IDM / 迅雷 / ADM 等工具下载
+            </p>
+        </div>
+    `;
     videoContainer.appendChild(fallbackDiv);
     
-    fallbackDiv.querySelector('.open-new-window-btn').onclick = () => {
-        window.open(primaryUrl, '_blank', 'noopener,noreferrer');
-        showSuccess('已在新窗口打开');
+    fallbackDiv.querySelector('.copy-original-url-btn').onclick = async () => {
+        try {
+            await navigator.clipboard.writeText(primaryUrl);
+            showSuccess('✅ 原始链接已复制！请使用下载工具粘贴下载');
+        } catch (err) {
+            prompt('复制此链接:', primaryUrl);
+        }
     };
 }
 
