@@ -407,7 +407,8 @@ function displayResult(data, apiSource) {
             url && self.indexOf(url) === index
         );
         
-        showFallbackOptions(allUrls, data.desc || 'video');
+        // 显示CORS错误的特殊提示
+        showCorsErrorSolution(allUrls, data.desc || 'video');
         
         let errorMsg = '视频无法在浏览器中播放';
         if (player.error) {
@@ -426,18 +427,28 @@ function displayResult(data, apiSource) {
                     break;
             }
         }
-        showError(`${errorMsg}，但您可以尝试下载视频到本地观看。`);
+        showError(`${errorMsg}（CORS跨域限制），但可以在新窗口打开观看和下载！`);
     });
     
     // 尝试加载视频
     player.load();
     
-    // 设置下载按钮
+    // 设置下载按钮 - 检测设备类型决定行为
     document.getElementById('downloadBtn').onclick = () => {
         const allUrls = [videoUrl, ...(data.backup_urls || [])].filter((url, index, self) => 
             url && self.indexOf(url) === index
         );
-        downloadVideo(allUrls[0], data.desc || 'video', allUrls.slice(1));
+        
+        // 检测是否为移动设备
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+            // 移动端：显示复制链接和下载工具说明
+            downloadVideo(allUrls[0], data.desc || 'video', allUrls.slice(1));
+        } else {
+            // PC端：直接在新窗口打开（可以播放和下载）
+            openVideoInNewWindow(allUrls[0], data.desc || 'video', allUrls.slice(1));
+        }
     };
     
     // 显示作者信息
@@ -458,8 +469,8 @@ function displayResult(data, apiSource) {
     showSuccess(`视频解析成功！使用的API: ${apiSource}，正在加载视频...`);
 }
 
-// 显示备用选项（视频加载失败时）
-function showFallbackOptions(videoUrls, desc) {
+// 显示CORS错误的解决方案（PC端专用）
+function showCorsErrorSolution(videoUrls, desc) {
     const videoContainer = document.querySelector('.video-container');
     const existingFallback = document.querySelector('.video-fallback');
     
@@ -469,114 +480,190 @@ function showFallbackOptions(videoUrls, desc) {
     }
     
     const fallbackDiv = document.createElement('div');
-    fallbackDiv.className = 'video-fallback';
+    fallbackDiv.className = 'video-fallback cors-solution';
     
     // 过滤掉重复的URL
     const uniqueUrls = [...new Set(videoUrls.filter(u => u))];
-    
-    let downloadButtons = '';
-    uniqueUrls.forEach((url, index) => {
-        const buttonText = uniqueUrls.length > 1 ? `下载链接 ${index + 1}` : '下载视频';
-        downloadButtons += `
-            <button class="fallback-download-btn" data-url="${url}" data-desc="${desc}" data-index="${index}">
-                <i class="fas fa-download"></i> ${buttonText}
-            </button>
-        `;
-    });
+    const primaryUrl = uniqueUrls[0];
     
     fallbackDiv.innerHTML = `
         <div class="fallback-message">
-            <p><i class="fas fa-exclamation-triangle"></i> 视频无法在线播放</p>
-            <p class="fallback-tips">可能原因：防盗链限制、CORS跨域问题、或视频格式不兼容</p>
-            <p class="fallback-tips"><strong>解决方案：</strong>点击下面的按钮下载视频到本地观看</p>
-            <div class="download-options">
-                ${downloadButtons}
+            <p><i class="fas fa-info-circle"></i> 由于CORS跨域限制，视频无法在页面内播放</p>
+            <p class="fallback-tips"><strong>好消息：</strong>可以在新窗口打开，直接观看和下载！</p>
+            <div class="solution-buttons">
+                <button class="open-new-window-btn" data-url="${primaryUrl}">
+                    <i class="fas fa-external-link-alt"></i> 在新窗口打开观看（推荐）
+                </button>
+                <button class="copy-link-btn-inline" data-url="${primaryUrl}">
+                    <i class="fas fa-copy"></i> 复制视频链接
+                </button>
+            </div>
+            <div class="tips-box">
+                <p><strong>提示：</strong></p>
+                <ul>
+                    <li>在新窗口中可以直接播放视频</li>
+                    <li>点击播放器右下角菜单可以下载视频</li>
+                    <li>或者右键视频选择"视频另存为"</li>
+                </ul>
             </div>
         </div>
     `;
     videoContainer.appendChild(fallbackDiv);
     
-    // 设置备用下载按钮
-    fallbackDiv.querySelectorAll('.fallback-download-btn').forEach(button => {
-        button.onclick = () => {
-            const url = button.getAttribute('data-url');
-            const desc = button.getAttribute('data-desc');
-            const index = parseInt(button.getAttribute('data-index'));
+    // 在新窗口打开按钮
+    const openBtn = fallbackDiv.querySelector('.open-new-window-btn');
+    openBtn.onclick = () => {
+        const url = openBtn.getAttribute('data-url');
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        if (newWindow) {
+            showSuccess('视频已在新窗口打开！可以直接观看和下载。');
+        } else {
+            showError('弹窗被阻止，请允许弹窗或手动复制链接。');
+        }
+    };
+    
+    // 复制链接按钮
+    const copyBtn = fallbackDiv.querySelector('.copy-link-btn-inline');
+    copyBtn.onclick = async () => {
+        const url = copyBtn.getAttribute('data-url');
+        try {
+            await navigator.clipboard.writeText(url);
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制';
+            copyBtn.style.background = 'linear-gradient(to right, #00b894, #00a085)';
+            showSuccess('链接已复制！在浏览器新标签页粘贴即可观看。');
             
-            // 获取其他URL作为备用
-            const otherUrls = uniqueUrls.filter((u, i) => i !== index);
-            downloadVideo(url, desc, otherUrls);
+            setTimeout(() => {
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制视频链接';
+                copyBtn.style.background = '';
+            }, 3000);
+        } catch (err) {
+            showFallbackCopyMethod(url);
+        }
+    };
+}
+
+// PC端：在新窗口打开视频（可以观看和下载）
+function openVideoInNewWindow(primaryUrl, filename = 'video', backupUrls = []) {
+    try {
+        console.log('在新窗口打开视频:', primaryUrl);
+        
+        // 直接在新窗口打开
+        const newWindow = window.open(primaryUrl, '_blank', 'noopener,noreferrer');
+        
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            // 弹窗被阻止
+            showError('弹窗被阻止，请允许弹窗或使用下方的复制链接功能。');
+            showPCDownloadInstructions(primaryUrl, filename, backupUrls);
+        } else {
+            // 成功打开
+            showSuccess('视频已在新窗口打开！您可以：1) 直接观看  2) 点击播放器菜单下载  3) 右键视频另存为');
+            
+            // 同时显示说明
+            setTimeout(() => {
+                showPCDownloadInstructions(primaryUrl, filename, backupUrls);
+            }, 500);
+        }
+        
+    } catch (error) {
+        console.error('打开新窗口失败:', error);
+        showError('无法打开新窗口，请查看下方的替代方案。');
+        showPCDownloadInstructions(primaryUrl, filename, backupUrls);
+    }
+}
+
+// PC端下载说明
+function showPCDownloadInstructions(url, filename, backupUrls = []) {
+    const videoActions = document.querySelector('.video-actions');
+    const existingInstructions = document.querySelector('.download-instructions');
+    
+    if (existingInstructions) {
+        existingInstructions.remove();
+    }
+    
+    const instructionsDiv = document.createElement('div');
+    instructionsDiv.className = 'download-instructions pc-download';
+    
+    instructionsDiv.innerHTML = `
+        <div class="instruction-content">
+            <p><i class="fas fa-desktop"></i> <strong>PC端下载指南：</strong></p>
+            <div class="method-box">
+                <p><strong>方法1：在新窗口直接操作（最简单）</strong></p>
+                <ol>
+                    <li>点击上方"下载视频"按钮，视频会在新窗口打开</li>
+                    <li>在新窗口中<strong>右键点击视频</strong> → 选择"<strong>视频另存为</strong>"</li>
+                    <li>或点击播放器右下角的<strong>菜单按钮(⋮)</strong> → 选择"<strong>下载</strong>"</li>
+                </ol>
+            </div>
+            <div class="method-box">
+                <p><strong>方法2：复制链接手动打开</strong></p>
+                <button class="copy-url-btn" data-url="${url}">
+                    <i class="fas fa-copy"></i> 复制视频链接
+                </button>
+                <p class="method-tips">复制后在浏览器新标签页粘贴打开即可</p>
+            </div>
+            ${backupUrls && backupUrls.length > 0 ? `
+            <div class="backup-section">
+                <p><strong>备用链接：</strong></p>
+                ${backupUrls.map((u, i) => `
+                    <button class="backup-open-btn" data-url="${u}">
+                        <i class="fas fa-external-link-alt"></i> 打开备用链接 ${i + 1}
+                    </button>
+                `).join('')}
+            </div>
+            ` : ''}
+        </div>
+    `;
+    
+    videoActions.appendChild(instructionsDiv);
+    
+    // 复制链接按钮
+    const copyBtn = instructionsDiv.querySelector('.copy-url-btn');
+    copyBtn.onclick = async () => {
+        const urlToCopy = copyBtn.getAttribute('data-url');
+        try {
+            await navigator.clipboard.writeText(urlToCopy);
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> 已复制链接';
+            copyBtn.style.background = 'linear-gradient(to right, #00b894, #00a085)';
+            showSuccess('链接已复制！在浏览器新标签页粘贴即可打开。');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制视频链接';
+                copyBtn.style.background = '';
+            }, 3000);
+        } catch (err) {
+            showFallbackCopyMethod(urlToCopy);
+        }
+    };
+    
+    // 备用链接按钮
+    instructionsDiv.querySelectorAll('.backup-open-btn').forEach(btn => {
+        btn.onclick = () => {
+            const url = btn.getAttribute('data-url');
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            if (newWindow) {
+                showSuccess('备用链接已在新窗口打开！');
+            } else {
+                showError('弹窗被阻止，请允许弹窗。');
+            }
         };
     });
 }
 
-// 改进的下载功能 - 处理防盗链403问题
+// 移动端：下载功能 - 处理防盗链403问题
 function downloadVideo(primaryUrl, filename = 'video', backupUrls = []) {
     try {
         // 清理文件名
         const cleanFilename = filename.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_').substring(0, 50) || 'video';
         
-        console.log('开始下载:', primaryUrl);
+        console.log('移动端下载:', primaryUrl);
         
-        // 检测是否为移动设备
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        // 尝试使用fetch下载（可以避免某些防盗链问题）
-        if (isMobile) {
-            // 移动端直接显示说明，因为fetch可能被CORS阻止
-            showMobileDownloadInstructions(primaryUrl, cleanFilename, backupUrls);
-        } else {
-            // PC端尝试fetch下载
-            attemptFetchDownload(primaryUrl, cleanFilename, backupUrls);
-        }
+        // 移动端：直接显示下载工具说明（因为403限制）
+        showMobileDownloadInstructions(primaryUrl, cleanFilename, backupUrls);
         
     } catch (error) {
         console.error('下载失败:', error);
         showError('下载功能遇到问题，请查看下方的替代方案。');
         showAlternativeDownloadMethods(primaryUrl, cleanFilename, backupUrls);
-    }
-}
-
-// 尝试使用fetch下载（避免防盗链）
-async function attemptFetchDownload(url, filename, backupUrls = []) {
-    try {
-        showSuccess('正在准备下载，请稍候...');
-        
-        // 尝试fetch下载
-        const response = await fetch(url, {
-            method: 'GET',
-            mode: 'cors',
-            cache: 'no-cache'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        // 获取blob
-        const blob = await response.blob();
-        
-        // 创建下载链接
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `${filename}.mp4`;
-        document.body.appendChild(link);
-        link.click();
-        
-        // 清理
-        setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-        }, 100);
-        
-        showSuccess('下载已开始！请查看浏览器下载管理器。');
-        
-    } catch (error) {
-        console.error('Fetch下载失败:', error);
-        
-        // Fetch失败，显示替代方案
-        showAlternativeDownloadMethods(url, filename, backupUrls);
     }
 }
 
@@ -598,27 +685,42 @@ function showMobileDownloadInstructions(url, filename, backupUrls = []) {
             <div class="warning-box">
                 <p><i class="fas fa-exclamation-triangle"></i> 由于视频平台的防盗链限制（403错误），直接下载会被阻止。</p>
             </div>
-            <p><strong>推荐方法（最有效）：</strong></p>
-            <ol>
-                <li><strong>复制视频链接</strong>，点击下面的按钮复制</li>
-                <li><strong>使用专业下载工具</strong>：
-                    <ul>
-                        <li>Android: ADM下载器、IDM+、迅雷</li>
-                        <li>iOS: Documents、Alook浏览器</li>
-                    </ul>
-                </li>
-                <li>在下载工具中<strong>粘贴链接</strong>即可开始下载</li>
-            </ol>
-            <div class="copy-link-section">
-                <button class="copy-link-btn" data-url="${url}">
-                    <i class="fas fa-copy"></i> 复制视频链接
-                </button>
+            <p><strong>✅ 推荐方法（最有效）：</strong></p>
+            <div class="method-steps">
+                <div class="step-item">
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <p><strong>复制视频链接</strong></p>
+                        <button class="copy-link-btn" data-url="${url}">
+                            <i class="fas fa-copy"></i> 点击复制链接
+                        </button>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <p><strong>使用专业下载工具</strong></p>
+                        <ul class="tool-list-mobile">
+                            <li><strong>Android:</strong> ADM下载器、IDM+、迅雷</li>
+                            <li><strong>iOS:</strong> Documents by Readdle、Alook浏览器</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <p><strong>在下载工具中粘贴链接</strong></p>
+                        <p class="step-tip">打开下载工具 → 新建任务 → 粘贴链接 → 开始下载</p>
+                    </div>
+                </div>
             </div>
-            <p><strong>备选方法：</strong></p>
-            <ol>
-                <li>使用电脑浏览器访问本网站（成功率更高）</li>
-                <li>返回原平台（抖音/快手）APP中保存视频</li>
-            </ol>
+            <div class="alternative-methods">
+                <p><strong>📱 其他方法：</strong></p>
+                <ul>
+                    <li>使用电脑浏览器访问本网站（成功率更高）</li>
+                    <li>返回原平台（抖音/快手）APP中保存视频</li>
+                </ul>
+            </div>
         </div>
     `;
     
@@ -634,7 +736,7 @@ function showMobileDownloadInstructions(url, filename, backupUrls = []) {
             showSuccess('视频链接已复制到剪贴板！请在下载工具中粘贴使用。');
             
             setTimeout(() => {
-                copyBtn.innerHTML = '<i class="fas fa-copy"></i> 复制视频链接';
+                copyBtn.innerHTML = '<i class="fas fa-copy"></i> 点击复制链接';
                 copyBtn.style.background = '';
             }, 3000);
         } catch (err) {
