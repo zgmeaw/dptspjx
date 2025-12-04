@@ -351,6 +351,24 @@ footer {
     text-align: center;
 }
 
+.help-link {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.help-link a {
+    transition: all 0.3s;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+.help-link a:hover {
+    background: rgba(255, 152, 0, 0.1);
+    text-decoration: underline !important;
+}
+
 .profile-section {
     text-align: center;
     margin: 25px 0;
@@ -609,6 +627,207 @@ footer {
     }
 }
 
+/* 警告框样式 */
+.warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px 15px;
+    margin: 15px 0;
+    border-radius: 6px;
+}
+
+.warning-box p {
+    margin: 0;
+    color: #856404;
+    font-size: 0.95rem;
+}
+
+/* 解决方案区域样式 */
+.solution-section {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+}
+
+.solution-section p {
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.solution-desc {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.tool-list {
+    margin: 10px 0;
+    padding-left: 20px;
+    list-style: none;
+}
+
+.tool-list li {
+    margin: 8px 0;
+    padding-left: 20px;
+    position: relative;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.tool-list li:before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--primary);
+    font-weight: bold;
+}
+
+/* 复制链接按钮 */
+.copy-link-section {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.copy-link-btn {
+    background: linear-gradient(to right, #667eea, #764ba2) !important;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+    min-height: 48px;
+}
+
+.copy-link-btn:hover {
+    background: linear-gradient(to right, #764ba2, #667eea) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* 备用链接区域 */
+.backup-urls-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 2px dashed #ddd;
+}
+
+.backup-urls-section p {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.backup-copy-btn {
+    background: linear-gradient(to right, #ff9800, #f57c00) !important;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 5px;
+    transition: all 0.3s;
+}
+
+.backup-copy-btn:hover {
+    background: linear-gradient(to right, #f57c00, #e65100) !important;
+    transform: translateY(-1px);
+}
+
+/* 备用复制框（全屏弹窗） */
+.fallback-copy-box {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s;
+}
+
+.fallback-copy-content {
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    max-width: 90%;
+    width: 500px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.fallback-copy-content p {
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    color: #333;
+}
+
+.url-textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: monospace;
+    resize: vertical;
+    margin-bottom: 15px;
+    word-break: break-all;
+}
+
+.url-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.close-fallback-btn {
+    background: linear-gradient(to right, var(--gray), #5a6268) !important;
+    width: 100%;
+    justify-content: center;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* 移动端下载样式增强 */
+.mobile-download {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.mobile-download .instruction-content {
+    color: #1565c0;
+}
+
+.mobile-download ol,
+.mobile-download ul {
+    text-align: left;
+    color: #424242;
+}
+
+.alternative-download {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+}
+
 /* 防止横屏时字体过大 */
 @media (max-width: 768px) and (orientation: landscape) {
     .video-player video {
@@ -617,5 +836,28 @@ footer {
     
     .container {
         max-width: 100%;
+    }
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .fallback-copy-content {
+        max-width: 95%;
+        padding: 20px;
+    }
+    
+    .tool-list {
+        font-size: 0.9rem;
+    }
+    
+    .solution-section {
+        padding: 12px;
+    }
+    
+    .copy-link-btn,
+    .backup-copy-btn {
+        width: 100%;
+        justify-content: center;
+        margin: 5px 0;
     }
 }
